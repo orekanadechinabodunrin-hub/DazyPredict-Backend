@@ -168,11 +168,104 @@ app.get("/api/predict/:fixtureId", async (req, res) => {
         const data = response.data?.response || [];
 
         if (data.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Aucune prédiction disponible pour ce match."
-            });
-        }
+
+    console.log(
+        `⚠️ API-Football ne fournit aucune prédiction pour le match ${fixtureId}.`
+    );
+
+    let fixture = null;
+
+    try {
+        const fixtureResponse = await apiFootball.get("/fixtures", {
+            params: {
+                id: fixtureId
+            }
+        });
+
+        fixture = fixtureResponse.data?.response?.[0] || null;
+
+    } catch (fixtureError) {
+
+        console.error(
+            "⚠️ Impossible de récupérer les informations du match :",
+            fixtureError.response?.data || fixtureError.message
+        );
+    }
+
+    let statistiques = [];
+
+    try {
+        const statisticsResponse = await apiFootball.get(
+            "/fixtures/statistics",
+            {
+                params: {
+                    fixture: fixtureId
+                }
+            }
+        );
+
+        statistiques =
+            statisticsResponse.data?.response || [];
+
+    } catch (statisticsError) {
+
+        console.error(
+            "⚠️ Statistiques indisponibles :",
+            statisticsError.response?.data ||
+            statisticsError.message
+        );
+    }
+
+    const domicile =
+        fixture?.teams?.home?.name ?? "Inconnu";
+
+    const exterieur =
+        fixture?.teams?.away?.name ?? "Inconnu";
+
+    return res.json({
+        success: true,
+
+        fixtureId: Number(fixtureId),
+
+        sourcePrediction:
+            "DazyPredict — analyse statistique",
+
+        qualiteDonnees:
+            statistiques.length >= 2
+                ? "partielle"
+                : "insuffisante",
+
+        match: {
+            domicile,
+            exterieur
+        },
+
+        analyse: {
+            gagnant: null,
+
+            victoireDomicile: null,
+            nul: null,
+            victoireExterieur: null,
+
+            conseil:
+                "Aucun pronostic fiable disponible : données statistiques insuffisantes.",
+
+            overUnder: null,
+
+            butsDomicile: null,
+            butsExterieur: null
+        },
+
+        statistiques,
+
+        forme: null,
+
+        h2h: null,
+
+        message:
+            "API-Football ne fournit pas de prédiction pour ce match. DazyPredict n'invente aucune probabilité."
+    });
+}
 
         const prediction = data[0];
         const p = prediction.predictions || {};
@@ -233,7 +326,38 @@ app.get("/api/predict/:fixtureId", async (req, res) => {
 // ========================================
 // STATISTIQUES D'UN MATCH
 // ========================================
+app.get("/api/fixtures/:fixtureId/events", async (req, res) => {
+    const { fixtureId } = req.params;
 
+    try {
+        const response = await apiFootball.get("/fixtures/events", {
+            params: {
+                fixture: fixtureId
+            }
+        });
+
+        const evenements = response.data?.response || [];
+
+        res.json({
+            success: true,
+            fixtureId: Number(fixtureId),
+            nombreEvenements: evenements.length,
+            evenements
+        });
+
+    } catch (error) {
+        console.error(
+            "⚠️ Impossible de récupérer les événements :",
+            error.response?.data || error.message
+        );
+
+        res.status(500).json({
+            success: false,
+            fixtureId: Number(fixtureId),
+            message: "Impossible de récupérer les événements du match."
+        });
+    }
+});
 app.get("/api/match/:fixtureId/statistics", async (req, res) => {
     try {
         const fixtureId = req.params.fixtureId;
@@ -266,7 +390,7 @@ app.get("/api/match/:fixtureId/statistics", async (req, res) => {
             success: true,
             fixtureId: Number(fixtureId),
             nombreEquipes: statistics.length,
-            statistiques
+            statistiques: statistics
         });
 
     } catch (error) {

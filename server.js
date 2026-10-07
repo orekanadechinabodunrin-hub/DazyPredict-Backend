@@ -326,6 +326,114 @@ app.get("/api/predict/:fixtureId", async (req, res) => {
 // ========================================
 // STATISTIQUES D'UN MATCH
 // ========================================
+function analyserEvenements(evenements, equipeDomicileId, equipeExterieureId) {
+
+    let butsMatch = 0;
+    let butsDomicile = 0;
+    let butsExterieur = 0;
+    let tirsAuBut = 0;
+
+    let cartonsJaunes = 0;
+    let cartonsRouges = 0;
+    let remplacements = 0;
+
+    const detailsButs = [];
+    const detailsCartons = [];
+    const detailsRemplacements = [];
+
+    for (const evenement of evenements) {
+
+        const type = (evenement.type || "").toLowerCase();
+        const detail = (evenement.detail || "").toLowerCase();
+        const comments = (evenement.comments || "").toLowerCase();
+
+        const equipeId = evenement.team?.id ?? null;
+
+        // 🎯 Séance de tirs au but
+        const estTirAuBut =
+            comments.includes("penalty shootout") ||
+            detail.includes("penalty shootout");
+
+        // ⚽ But
+        if (type === "goal") {
+
+            if (estTirAuBut) {
+
+                tirsAuBut++;
+
+            } else {
+
+                butsMatch++;
+
+                if (equipeId === equipeDomicileId) {
+                    butsDomicile++;
+                }
+
+                if (equipeId === equipeExterieureId) {
+                    butsExterieur++;
+                }
+
+                detailsButs.push({
+                    minute: evenement.time?.elapsed ?? null,
+                    equipe: evenement.team?.name ?? "Inconnue",
+                    joueur: evenement.player?.name ?? null,
+                    detail: evenement.detail ?? null
+                });
+            }
+        }
+
+        // 🟨 / 🟥 Cartons
+        if (type === "card") {
+
+            if (detail.includes("yellow")) {
+                cartonsJaunes++;
+            }
+
+            if (
+                detail.includes("red") ||
+                detail.includes("second yellow")
+            ) {
+                cartonsRouges++;
+            }
+
+            detailsCartons.push({
+                minute: evenement.time?.elapsed ?? null,
+                equipe: evenement.team?.name ?? "Inconnue",
+                joueur: evenement.player?.name ?? null,
+                detail: evenement.detail ?? null
+            });
+        }
+
+        // 🔄 Remplacements
+        if (type === "subst") {
+
+            remplacements++;
+
+            detailsRemplacements.push({
+                minute: evenement.time?.elapsed ?? null,
+                equipe: evenement.team?.name ?? "Inconnue",
+                joueurEntrant: evenement.player?.name ?? null,
+                joueurSortant: evenement.assist?.name ?? null
+            });
+        }
+    }
+
+    return {
+        butsMatch,
+        butsDomicile,
+        butsExterieur,
+        tirsAuBut,
+
+        cartonsJaunes,
+        cartonsRouges,
+
+        remplacements,
+
+        detailsButs,
+        detailsCartons,
+        detailsRemplacements
+    };
+}
 app.get("/api/fixtures/:fixtureId/events", async (req, res) => {
     const { fixtureId } = req.params;
 
@@ -338,12 +446,30 @@ app.get("/api/fixtures/:fixtureId/events", async (req, res) => {
 
         const evenements = response.data?.response || [];
 
-        res.json({
-            success: true,
-            fixtureId: Number(fixtureId),
-            nombreEvenements: evenements.length,
-            evenements
-        });
+const fixtureResponse = await apiFootball.get("/fixtures", {
+    params: {
+        id: fixtureId
+    }
+});
+
+const fixture = fixtureResponse.data?.response?.[0];
+
+const equipeDomicileId = fixture?.teams?.home?.id ?? null;
+const equipeExterieureId = fixture?.teams?.away?.id ?? null;
+
+const analyseEvenements = analyserEvenements(
+    evenements,
+    equipeDomicileId,
+    equipeExterieureId
+);
+
+res.json({
+    success: true,
+    fixtureId: Number(fixtureId),
+    nombreEvenements: evenements.length,
+    evenements,
+    analyseEvenements
+});
 
     } catch (error) {
         console.error(

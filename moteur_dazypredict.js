@@ -14,7 +14,14 @@ function calculerMoyenne(valeurs) {
     return total + Number(valeur || 0);
   }, 0) / valeurs.length;
 }
-
+function normaliserNomEquipe(nom) {
+  return String(nom || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(fc|cf|sc|afc|ac|as|fk|sk)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
 function analyserEquipe(matchs, nomEquipe, domicile = true) {
   if (!Array.isArray(matchs)) {
     throw new Error("La liste des matchs doit être un tableau.");
@@ -24,7 +31,7 @@ function analyserEquipe(matchs, nomEquipe, domicile = true) {
     .filter((match) => {
       const equipe = domicile ? match.domicile : match.exterieur;
 
-      return equipe === nomEquipe &&
+      return normaliserNomEquipe(equipe) === normaliserNomEquipe(nomEquipe) &&
         Number.isFinite(Number(match.butsDomicile)) &&
         Number.isFinite(Number(match.butsExterieur)) &&
         typeof match.date === "string";

@@ -1,7 +1,10 @@
+
 require("dotenv").config();
 
 const express = require("express");
 const axios = require("axios");
+const { chargerMatchsHistoriques } = require("./adaptateur_openfootball");
+const { calculerProbabilites } = require("./moteur_dazypredict");
 
 const app = express();
 const PORT = 3000;
@@ -770,6 +773,43 @@ app.get("/api/team/:teamId/form", async (req, res) => {
 
     }
 });
+
+ // ========================================
+ // PRÉDICTION AUTONOME — SANS API-FOOTBALL
+ // ========================================
+
+ app.get("/api/autonome/predict", (req, res) => {
+     try {
+         const domicile = req.query.domicile;
+         const exterieur = req.query.exterieur;
+
+         if (!domicile || !exterieur) {
+             return res.status(400).json({
+                 success: false,
+                 message: "Précise les paramètres domicile et exterieur."
+             });
+         }
+
+         const matchs = chargerMatchsHistoriques();
+
+         const resultat = calculerProbabilites(
+             matchs,
+             domicile,
+             exterieur
+         );
+
+         return res.json(resultat);
+
+     } catch (error) {
+         console.error("Erreur prédiction autonome :", error.message);
+
+         return res.status(500).json({
+             success: false,
+             message: "Impossible de calculer la prédiction autonome."
+         });
+     }
+ });
+
 // ========================================
 // SERVEUR
 // ========================================

@@ -325,12 +325,14 @@ app.get("/api/matches/today", async (req, res) => {
 app.get("/api/matches/results", async (req, res) => {
     try {
         const calendrier = await obtenirCalendrierActualise();
-        const depuis = typeof req.query.depuis === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.depuis)
-            ? req.query.depuis
+        const depuisParametre = req.query?.depuis;
+        const depuis = typeof depuisParametre === "string" && /^\d{4}-\d{2}-\d{2}$/.test(depuisParametre)
+            ? depuisParametre
             : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-        const resultats = calendrier.matchs
-            .filter(match => match.scoreDisponible && match.date >= depuis)
+        const matchs = Array.isArray(calendrier?.matchs) ? calendrier.matchs : [];
+        const resultats = matchs
+            .filter(match => match && match.scoreDisponible === true && typeof match.date === "string" && match.date >= depuis)
             .map(match => ({
                 date: match.date,
                 domicile: match.domicile,
@@ -351,7 +353,7 @@ app.get("/api/matches/results", async (req, res) => {
             resultats
         });
     } catch (error) {
-        console.error("❌ Erreur lecture des résultats récents :", error.message);
+        console.error("❌ Erreur lecture des résultats récents :", error.stack || error.message);
         return res.status(500).json({
             success: false,
             message: "Impossible de lire les résultats récents."

@@ -347,7 +347,7 @@ app.get("/api/matches/results", async (req, res) => {
         return res.json({
             success: true,
             source: calendrier.source,
-            verifieLe: calendario.verifieLe,
+            verifieLe: calendrier.verifieLe,
             depuis,
             nombre: resultats.length,
             resultats

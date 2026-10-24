@@ -7,6 +7,15 @@ const fichiersSaisons = [
   "matchs_2026_2027.json"
 ];
 
+function normaliserEquipeCle(nom) {
+  return String(nom || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(fc|cf|sc|afc|ac|as|fk|sk)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function chargerMatchsHistoriques() {
   const matchsParCle = new Map();
 
@@ -63,14 +72,15 @@ const resultat = {
   domicile: match.team1,
   exterieur: match.team2,
   butsDomicile: scoreFinal[0],
-  butsExterieur: scoreFinal[1]
+  butsExterieur: scoreFinal[1],
+  championnat: donnees.name ?? "Championnat non précisé"
 };
 
 
       const cle = [
         resultat.date,
-        resultat.domicile,
-        resultat.exterieur
+        normaliserEquipeCle(resultat.domicile),
+        normaliserEquipeCle(resultat.exterieur)
       ].join("|");
 
       // En cas de doublon, conserver le résultat du fichier le plus récent.
@@ -129,8 +139,8 @@ function chargerCalendrierOpenFootball() {
 
         const cle = [
           resultat.date,
-          resultat.domicile,
-          resultat.exterieur
+          normaliserEquipeCle(resultat.domicile),
+          normaliserEquipeCle(resultat.exterieur)
         ].join("|");
 
         matchsParCle.set(cle, resultat);

@@ -7,7 +7,7 @@ const {
     chargerMatchsHistoriques,
     chargerCalendrierOpenFootball
 } = require("./adaptateur_openfootball");
-const { calculerProbabilites } = require("./moteur_dazypredict");
+const { calculerProbabilites, normaliserNomEquipe } = require("./moteur_dazypredict");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -952,10 +952,14 @@ app.get("/api/team/:teamId/form", verifierApiFootball, async (req, res) => {
  // PRÉDICTION AUTONOME — SANS API-FOOTBALL
  // ========================================
 
- app.get("/api/autonome/predict", (req, res) => {
+ app.get("/api/autonome/predict", async (req, res) => {
      try {
          const domicile = req.query.domicile;
          const exterieur = req.query.exterieur;
+         const dateReference = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+             ? req.query.date
+             : new Date().toISOString().slice(0, 10);
+         const competition = typeof req.query.competition === "string" ? req.query.competition : "";
 
          if (!domicile || !exterieur) {
              return res.status(400).json({
@@ -964,13 +968,38 @@ app.get("/api/team/:teamId/form", verifierApiFootball, async (req, res) => {
              });
          }
 
-         const matchs = chargerMatchsHistoriques();
+         const matchsParCle = new Map();
+         const cleHistorique = match => [
+             match.date,
+             normaliserNomEquipe(match.domicile),
+             normaliserNomEquipe(match.exterieur)
+         ].join("|");
+
+         for (const match of chargerMatchsHistoriques()) {
+             matchsParCle.set(cleHistorique(match), match);
+         }
+
+         // Les résultats terminés de la source du calendrier complètent l'historique local.
+         // Ils remplacent les éventuels doublons et le moteur exclut ensuite tout match futur.
+         const calendrier = await obtenirCalendrierActualise();
+         for (const match of calendrier.matchs) {
+             if (match.scoreDisponible && match.date < dateReference) {
+                 matchsParCle.set(cleHistorique(match), match);
+             }
+         }
 
          const resultat = calculerProbabilites(
-             matchs,
+             [...matchsParCle.values()],
              domicile,
-             exterieur
+             exterieur,
+             { dateReference, competition }
          );
+
+         if (resultat.success) {
+             resultat.sourceCalendrier = calendrier.source;
+             resultat.verifieLe = calendrier.verifieLe;
+             resultat.modeCalendrier = calendrier.mode;
+         }
 
          return res.json(resultat);
 

@@ -99,11 +99,132 @@ app.get("/api/test", verifierApiFootball, async (req, res) => {
 
 
 
-app.get("/api/matches/today", (req, res) => {
+const CACHE_CALENDRIER_24H = 24 * 60 * 60 * 1000;
+const CACHE_RESECOURS_1H = 60 * 60 * 1000;
+let cacheCalendrier = null;
+let actualisationCalendrierEnCours = null;
+
+function obtenirSaisonOpenFootball(date = new Date()) {
+    const anneeDebut = date.getUTCMonth() >= 6
+        ? date.getUTCFullYear()
+        : date.getUTCFullYear() - 1;
+    return `${anneeDebut}-${String(anneeDebut + 1).slice(-2)}`;
+}
+
+function normaliserEquipeCalendrier(nom) {
+    return String(nom || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\b(fc|cf|sc|afc|ac|as|fk|sk)\b/g, "")
+        .replace(/[^a-z0-9]/g, "");
+}
+
+function cleCalendrier(match) {
+    return [match.date, normaliserEquipeCalendrier(match.domicile), normaliserEquipeCalendrier(match.exterieur)].join("|");
+}
+
+function convertirCalendrierDistant(donnees) {
+    if (!Array.isArray(donnees?.matches)) return [];
+
+    return donnees.matches
+        .filter(match =>
+            match &&
+            /^\d{4}-\d{2}-\d{2}$/.test(match.date) &&
+            typeof match.team1 === "string" && match.team1.trim() &&
+            typeof match.team2 === "string" && match.team2.trim()
+        )
+        .map(match => {
+            const score = Array.isArray(match.score) ? match.score : match.score?.ft;
+            const scoreDisponible = Array.isArray(score) && score.length === 2 &&
+                Number.isFinite(score[0]) && Number.isFinite(score[1]);
+
+            return {
+                date: match.date,
+                heure: typeof match.time === "string" ? match.time : null,
+                domicile: match.team1.trim(),
+                exterieur: match.team2.trim(),
+                butsDomicile: scoreDisponible ? score[0] : null,
+                butsExterieur: scoreDisponible ? score[1] : null,
+                scoreDisponible,
+                championnat: donnees.name || "Premier League"
+            };
+        });
+}
+
+async function obtenirCalendrierActualise() {
+    const maintenant = Date.now();
+    if (cacheCalendrier && maintenant < cacheCalendrier.prochaineVerification) return cacheCalendrier;
+    if (actualisationCalendrierEnCours) return actualisationCalendrierEnCours;
+
+    actualisationCalendrierEnCours = (async () => {
+        const verifieLe = new Date().toISOString();
+        const saison = obtenirSaisonOpenFootball();
+        const url = `https://raw.githubusercontent.com/openfootball/football.json/master/${saison}/en.1.json`;
+
+        try {
+            const reponse = await axios.get(url, {
+                timeout: 8000,
+                headers: { Accept: "application/json" }
+            });
+            const matchsDistant = convertirCalendrierDistant(reponse.data);
+
+            if (matchsDistant.length < 20) {
+                throw new Error("Le calendrier distant est incomplet ou invalide.");
+            }
+
+            // Le calendrier distant remplace la Premier League locale; les autres compétitions locales restent disponibles.
+            const autresMatchsLocaux = chargerCalendrierOpenFootball()
+                .filter(match => !/premier league/i.test(match.championnat || ""));
+            const matchsParCle = new Map();
+            for (const match of [...autresMatchsLocaux, ...matchsDistant]) {
+                matchsParCle.set(cleCalendrier(match), match);
+            }
+
+            const lastModified = reponse.headers?.["last-modified"];
+            const dateSource = lastModified && Number.isFinite(Date.parse(lastModified))
+                ? new Date(lastModified).toISOString()
+                : null;
+
+            console.log(`✅ Calendrier OpenFootball en ligne vérifié (${matchsDistant.length} matchs).`);
+            return {
+                matchs: [...matchsParCle.values()].sort((a, b) =>
+                    a.date.localeCompare(b.date) || (a.heure || "").localeCompare(b.heure || "")
+                ),
+                source: `OpenFootball en ligne (${saison}) + autres fichiers locaux`,
+                mode: "en_ligne",
+                verifieLe,
+                dateSource,
+                avertissement: null,
+                prochaineVerification: maintenant + CACHE_CALENDRIER_24H
+            };
+        } catch (error) {
+            console.warn("⚠️ Calendrier en ligne indisponible; utilisation des fichiers locaux :", error.message);
+            return {
+                matchs: chargerCalendrierOpenFootball(),
+                source: "Fichiers locaux OpenFootball (secours)",
+                mode: "secours_local",
+                verifieLe,
+                dateSource: null,
+                avertissement: "La source en ligne est indisponible. Le calendrier local de secours est utilisé.",
+                prochaineVerification: maintenant + CACHE_RESECOURS_1H
+            };
+        }
+    })();
+
+    try {
+        cacheCalendrier = await actualisationCalendrierEnCours;
+        return cacheCalendrier;
+    } finally {
+        actualisationCalendrierEnCours = null;
+    }
+}
+
+app.get("/api/matches/today", async (req, res) => {
     console.log("🔎 MATCHS DU JOUR — SOURCE OPENFOOTBALL");
 
     try {
-        const { chargerCalendrierOpenFootball } = require("./adaptateur_openfootball");
+        const calendrier = await obtenirCalendrierActualise();
 
         // Date du jour au Bénin, au format YYYY-MM-DD.
         const partiesDate = new Intl.DateTimeFormat("en-CA", {
@@ -130,7 +251,7 @@ app.get("/api/matches/today", (req, res) => {
             return date.toISOString().slice(0, 10);
         });
 
-        const matchs = chargerCalendrierOpenFootball()
+        const matchs = calendrier.matchs
             .filter(match => datesAffichees.includes(match.date))
             .map((match, index) => ({
                 id: `openfootball-${index + 1}`,
@@ -156,7 +277,7 @@ app.get("/api/matches/today", (req, res) => {
                 statut: {
                     court: match.scoreDisponible ? "FT" : "NS",
                     description: match.scoreDisponible
-                        ? "Résultat présent dans le fichier local"
+                        ? "Résultat présent dans le calendrier source"
                         : "Match programmé — statut en direct indisponible",
                     minute: null
                 },
@@ -166,20 +287,27 @@ app.get("/api/matches/today", (req, res) => {
                     exterieur: match.butsExterieur
                 },
 
-                source: "OpenFootball — fichiers locaux",
+                source: calendrier.source,
                 directDisponible: false
             }));
 
         return res.json({
             success: true,
-            source: "OpenFootball — fichiers locaux",
+            source: calendrier.source,
+            actualisation: {
+                source: calendrier.source,
+                mode: calendrier.mode,
+                verifieLe: calendrier.verifieLe,
+                dateSource: calendrier.dateSource,
+                avertissement: calendrier.avertissement
+            },
             date: aujourdHui,
             dates: datesAffichees,
             nombre: matchs.length,
             matchs,
             message: matchs.length
-                ? `Matchs trouvés du ${datesAffichees[0]} au ${datesAffichees[datesAffichees.length - 1]}. Les données locales ne sont pas actualisées en direct.`
-                : `Aucun match trouvé du ${datesAffichees[0]} au ${datesAffichees[datesAffichees.length - 1]} dans les fichiers locaux.`
+                ? `Matchs trouvés du ${datesAffichees[0]} au ${datesAffichees[datesAffichees.length - 1]}. Les scores en direct ne sont pas fournis par cette source.`
+                : `Aucun match trouvé du ${datesAffichees[0]} au ${datesAffichees[datesAffichees.length - 1]} dans les calendriers disponibles.`
         });
 
     } catch (error) {

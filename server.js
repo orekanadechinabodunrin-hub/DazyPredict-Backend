@@ -3,11 +3,14 @@ require("dotenv").config();
 
 const express = require("express");
 const axios = require("axios");
-const { chargerMatchsHistoriques } = require("./adaptateur_openfootball");
+const {
+    chargerMatchsHistoriques,
+    chargerCalendrierOpenFootball
+} = require("./adaptateur_openfootball");
 const { calculerProbabilites } = require("./moteur_dazypredict");
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
@@ -15,12 +18,24 @@ app.use(express.json());
 // VÉRIFICATION DE LA CLÉ API
 // ========================================
 
-if (!process.env.API_FOOTBALL_KEY) {
-    console.error("❌ API_FOOTBALL_KEY est manquante dans .env");
-    process.exit(1);
+const apiFootballDisponible = Boolean(process.env.API_FOOTBALL_KEY);
+
+if (apiFootballDisponible) {
+    console.log("✅ Clé API-Football détectée");
+} else {
+    console.warn("⚠️ API-Football indisponible; les routes locales restent actives.");
 }
 
-console.log("✅ Clé API-Football détectée");
+function verifierApiFootball(req, res, next) {
+    if (!apiFootballDisponible) {
+        return res.status(503).json({
+            success: false,
+            message: "API-Football indisponible : aucune clé API n'est configurée."
+        });
+    }
+
+    return next();
+}
 
 // ========================================
 // CONNEXION API-FOOTBALL
@@ -28,9 +43,9 @@ console.log("✅ Clé API-Football détectée");
 
 const apiFootball = axios.create({
     baseURL: "https://v3.football.api-sports.io",
-    headers: {
-        "x-apisports-key": process.env.API_FOOTBALL_KEY
-    },
+    headers: apiFootballDisponible
+        ? { "x-apisports-key": process.env.API_FOOTBALL_KEY }
+        : {},
     timeout: 15000
 });
 
@@ -50,7 +65,7 @@ app.get("/", (req, res) => {
 // TEST API-FOOTBALL
 // ========================================
 
-app.get("/api/test", async (req, res) => {
+app.get("/api/test", verifierApiFootball, async (req, res) => {
     try {
         const response = await apiFootball.get("/status");
 
@@ -82,69 +97,87 @@ app.get("/api/test", async (req, res) => {
 // MATCHS DU JOUR
 // ========================================
 
-app.get("/api/matches/today", async (req, res) => {
-    console.log("🔎 DEMANDE MATCHS DU JOUR REÇUE");
+
+
+app.get("/api/matches/today", (req, res) => {
+    console.log("🔎 MATCHS DU JOUR — SOURCE OPENFOOTBALL");
+
     try {
-        const today = new Date().toISOString().slice(0, 10);
+        const { chargerCalendrierOpenFootball } = require("./adaptateur_openfootball");
 
-        const response = await apiFootball.get("/fixtures", {
-            params: {
-                date: today
-            }
-        });
-console.log("📊 API-FOOTBALL :", response.data?.results, response.data?.errors);
-       
-        const matches = (response.data?.response || []).map(match => ({
-            id: match.fixture?.id ?? null,
+        // Date du jour au Bénin, au format YYYY-MM-DD.
+        const partiesDate = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Africa/Porto-Novo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }).formatToParts(new Date());
 
-            championnat: {
-                id: match.league?.id ?? null,
-                nom: match.league?.name ?? "Inconnu",
-                pays: match.league?.country ?? "Inconnu",
-                logo: match.league?.logo ?? null
-            },
+        const valeursDate = Object.fromEntries(
+            partiesDate.map(partie => [partie.type, partie.value])
+        );
 
-            match: {
-                domicile: match.teams?.home?.name ?? "Inconnu",
-                exterieur: match.teams?.away?.name ?? "Inconnu",
+        const aujourdHui =
+            `${valeursDate.year}-${valeursDate.month}-${valeursDate.day}`;
 
-                idDomicile: match.teams?.home?.id ?? null,
-                idExterieur: match.teams?.away?.id ?? null,
+        const matchs = chargerCalendrierOpenFootball()
+            .filter(match => match.date === aujourdHui)
+            .map((match, index) => ({
+                id: `openfootball-${index + 1}`,
 
-                logoDomicile: match.teams?.home?.logo ?? null,
-                logoExterieur: match.teams?.away?.logo ?? null
-            },
+                championnat: {
+                    id: null,
+                    nom: match.championnat || "Championnat non précisé",
+                    pays: "Inconnu",
+                    logo: null
+                },
 
-            date: match.fixture?.date ?? null,
+                match: {
+                    domicile: match.domicile,
+                    exterieur: match.exterieur,
+                    idDomicile: null,
+                    idExterieur: null,
+                    logoDomicile: null,
+                    logoExterieur: null
+                },
 
-            statut: {
-                court: match.fixture?.status?.short ?? null,
-                description: match.fixture?.status?.long ?? null,
-                minute: match.fixture?.status?.elapsed ?? null
-            },
+                date: match.date + (match.heure ? `T${match.heure}` : ""),
 
-            score: {
-                domicile: match.goals?.home ?? null,
-                exterieur: match.goals?.away ?? null
-            }
-        }));
+                statut: {
+                    court: match.scoreDisponible ? "FT" : "NS",
+                    description: match.scoreDisponible
+                        ? "Résultat présent dans le fichier local"
+                        : "Match programmé — statut en direct indisponible",
+                    minute: null
+                },
 
-        res.json({
+                score: {
+                    domicile: match.butsDomicile,
+                    exterieur: match.butsExterieur
+                },
+
+                source: "OpenFootball — fichiers locaux",
+                directDisponible: false
+            }));
+
+        return res.json({
             success: true,
-            nombre: matches.length,
-            matchs: matches
+            source: "OpenFootball — fichiers locaux",
+            date: aujourdHui,
+            nombre: matchs.length,
+            matchs,
+            message: matchs.length
+                ? "Matchs trouvés dans les fichiers locaux. Les données ne sont pas actualisées en direct."
+                : "Aucun match trouvé pour cette date dans les fichiers locaux."
         });
 
     } catch (error) {
-        console.error(
-            "❌ Erreur matchs :",
-            error.response?.data || error.message
-        );
+        console.error("❌ Erreur OpenFootball :", error.message);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: "Impossible de récupérer les matchs",
-            erreur: error.response?.data || error.message
+            message: "Impossible de lire les matchs OpenFootball.",
+            erreur: error.message
         });
     }
 });
@@ -153,7 +186,7 @@ console.log("📊 API-FOOTBALL :", response.data?.results, response.data?.errors
 // PRÉDICTION D'UN MATCH
 // ========================================
 
-app.get("/api/predict/:fixtureId", async (req, res) => {
+app.get("/api/predict/:fixtureId", verifierApiFootball, async (req, res) => {
     try {
         const fixtureId = req.params.fixtureId;
 
@@ -439,7 +472,7 @@ function analyserEvenements(evenements, equipeDomicileId, equipeExterieureId) {
         detailsRemplacements
     };
 }
-app.get("/api/fixtures/:fixtureId/events", async (req, res) => {
+app.get("/api/fixtures/:fixtureId/events", verifierApiFootball, async (req, res) => {
     const { fixtureId } = req.params;
 
     try {
@@ -489,7 +522,7 @@ res.json({
         });
     }
 });
-app.get("/api/match/:fixtureId/statistics", async (req, res) => {
+app.get("/api/match/:fixtureId/statistics", verifierApiFootball, async (req, res) => {
     try {
         const fixtureId = req.params.fixtureId;
 
@@ -542,7 +575,7 @@ app.get("/api/match/:fixtureId/statistics", async (req, res) => {
 // FORME RÉCENTE D'UNE ÉQUIPE
 // ========================================
 
-app.get("/api/team/:teamId/form", async (req, res) => {
+app.get("/api/team/:teamId/form", verifierApiFootball, async (req, res) => {
     try {
         const teamId = req.params.teamId;
 

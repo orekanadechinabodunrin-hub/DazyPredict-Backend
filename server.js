@@ -92,6 +92,7 @@ app.get("/api/matches/today", async (req, res) => {
                 date: today
             }
         });
+console.log("📊 API-FOOTBALL :", response.data?.results, response.data?.errors);
        
         const matches = (response.data?.response || []).map(match => ({
             id: match.fixture?.id ?? null,

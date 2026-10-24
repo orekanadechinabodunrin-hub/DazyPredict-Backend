@@ -83,6 +83,7 @@ app.get("/api/test", async (req, res) => {
 // ========================================
 
 app.get("/api/matches/today", async (req, res) => {
+    console.log("🔎 DEMANDE MATCHS DU JOUR REÇUE");
     try {
         const today = new Date().toISOString().slice(0, 10);
 
@@ -91,7 +92,7 @@ app.get("/api/matches/today", async (req, res) => {
                 date: today
             }
         });
-
+       
         const matches = (response.data?.response || []).map(match => ({
             id: match.fixture?.id ?? null,
 

@@ -32,27 +32,40 @@ function chargerMatchsHistoriques() {
       continue;
     }
 
-    for (const match of donnees.matches) {
-      if (
-        !match ||
-        typeof match.team1 !== "string" ||
-        typeof match.team2 !== "string" ||
-        typeof match.date !== "string" ||
-        !Array.isArray(match.score?.ft) ||
-        match.score.ft.length !== 2 ||
-        !Number.isFinite(match.score.ft[0]) ||
-        !Number.isFinite(match.score.ft[1])
-      ) {
-        continue;
-      }
+    
+for (const match of donnees.matches) {
+  if (
+    !match ||
+    typeof match.team1 !== "string" ||
+    typeof match.team2 !== "string" ||
+    typeof match.date !== "string"
+  ) {
+    continue;
+  }
 
-      const resultat = {
-        date: match.date,
-        domicile: match.team1,
-        exterieur: match.team2,
-        butsDomicile: match.score.ft[0],
-        butsExterieur: match.score.ft[1]
-      };
+  const scoreFinal = Array.isArray(match.score)
+    ? match.score
+    : match.score?.ft;
+
+  if (
+    !Array.isArray(scoreFinal) ||
+    scoreFinal.length !== 2 ||
+    !Number.isFinite(scoreFinal[0]) ||
+    !Number.isFinite(scoreFinal[1])
+  ) {
+    continue;
+  }
+
+
+      
+const resultat = {
+  date: match.date,
+  domicile: match.team1,
+  exterieur: match.team2,
+  butsDomicile: scoreFinal[0],
+  butsExterieur: scoreFinal[1]
+};
+
 
       const cle = [
         resultat.date,

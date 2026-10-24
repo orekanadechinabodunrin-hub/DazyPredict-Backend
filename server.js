@@ -321,6 +321,44 @@ app.get("/api/matches/today", async (req, res) => {
     }
 });
 
+// Résultats terminés récents : utilisés par l'application pour régler les pronostics enregistrés.
+app.get("/api/matches/results", async (req, res) => {
+    try {
+        const calendrier = await obtenirCalendrierActualise();
+        const depuis = typeof req.query.depuis === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.depuis)
+            ? req.query.depuis
+            : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+        const resultats = calendrier.matchs
+            .filter(match => match.scoreDisponible && match.date >= depuis)
+            .map(match => ({
+                date: match.date,
+                domicile: match.domicile,
+                exterieur: match.exterieur,
+                score: {
+                    domicile: match.butsDomicile,
+                    exterieur: match.butsExterieur
+                },
+                championnat: match.championnat
+            }));
+
+        return res.json({
+            success: true,
+            source: calendrier.source,
+            verifieLe: calendario.verifieLe,
+            depuis,
+            nombre: resultats.length,
+            resultats
+        });
+    } catch (error) {
+        console.error("❌ Erreur lecture des résultats récents :", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Impossible de lire les résultats récents."
+        });
+    }
+});
+
 // ========================================
 // PRÉDICTION D'UN MATCH
 // ========================================

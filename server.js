@@ -120,8 +120,18 @@ app.get("/api/matches/today", (req, res) => {
         const aujourdHui =
             `${valeursDate.year}-${valeursDate.month}-${valeursDate.day}`;
 
+        const joursDemandes = Number.parseInt(req.query.jours, 10);
+        const nombreJours = Number.isFinite(joursDemandes)
+            ? Math.min(7, Math.max(1, joursDemandes))
+            : 1;
+        const datesAffichees = Array.from({ length: nombreJours }, (_, index) => {
+            const date = new Date(`${aujourdHui}T12:00:00Z`);
+            date.setUTCDate(date.getUTCDate() + index);
+            return date.toISOString().slice(0, 10);
+        });
+
         const matchs = chargerCalendrierOpenFootball()
-            .filter(match => match.date === aujourdHui)
+            .filter(match => datesAffichees.includes(match.date))
             .map((match, index) => ({
                 id: `openfootball-${index + 1}`,
 
@@ -164,11 +174,12 @@ app.get("/api/matches/today", (req, res) => {
             success: true,
             source: "OpenFootball — fichiers locaux",
             date: aujourdHui,
+            dates: datesAffichees,
             nombre: matchs.length,
             matchs,
             message: matchs.length
-                ? "Matchs trouvés dans les fichiers locaux. Les données ne sont pas actualisées en direct."
-                : "Aucun match trouvé pour cette date dans les fichiers locaux."
+                ? `Matchs trouvés du ${datesAffichees[0]} au ${datesAffichees[datesAffichees.length - 1]}. Les données locales ne sont pas actualisées en direct.`
+                : `Aucun match trouvé du ${datesAffichees[0]} au ${datesAffichees[datesAffichees.length - 1]} dans les fichiers locaux.`
         });
 
     } catch (error) {

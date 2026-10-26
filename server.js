@@ -120,6 +120,54 @@ function normaliserEquipeCalendrier(nom) {
         .replace(/[^a-z0-9]/g, "");
 }
 
+const CACHE_RESULTATS_ESPN_MS = 5 * 60 * 1000;
+const cacheResultatsEspn = new Map();
+const requetesResultatsEspnEnCours = new Map();
+
+async function obtenirResultatsEspn(date, ligue) {
+    const cle = `${date}|${ligue}`;
+    const cache = cacheResultatsEspn.get(cle);
+    if (cache && cache.expire > Date.now()) return cache.resultats;
+    if (requetesResultatsEspnEnCours.has(cle)) return requetesResultatsEspnEnCours.get(cle);
+
+    const requete = (async () => {
+        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${ligue}/scoreboard?dates=${date.replace(/-/g, "")}`;
+        const reponse = await axios.get(url, { timeout: 12000, headers: { Accept: "application/json" } });
+        const resultats = (Array.isArray(reponse.data?.events) ? reponse.data.events : [])
+            .filter(event => event?.status?.type?.completed === true)
+            .map(event => {
+                const competition = event.competitions?.[0];
+                const participants = Array.isArray(competition?.competitors) ? competition.competitors : [];
+                const domicile = participants.find(team => team.homeAway === "home");
+                const exterieur = participants.find(team => team.homeAway === "away");
+                const butsDomicile = Number(domicile?.score);
+                const butsExterieur = Number(exterieur?.score);
+                if (!domicile?.team?.displayName || !exterieur?.team?.displayName ||
+                    !Number.isFinite(butsDomicile) || !Number.isFinite(butsExterieur)) return null;
+                return {
+                    date: String(event.date || date).slice(0, 10),
+                    domicile: domicile.team.displayName,
+                    exterieur: exterieur.team.displayName,
+                    score: { domicile: butsDomicile, exterieur: butsExterieur },
+                    championnat: event.season?.slug || ligue
+                };
+            }).filter(Boolean);
+        cacheResultatsEspn.set(cle, { resultats, expire: Date.now() + CACHE_RESULTATS_ESPN_MS });
+        if (cacheResultatsEspn.size > 200) {
+            const plusAncienneCle = cacheResultatsEspn.keys().next().value;
+            if (plusAncienneCle) cacheResultatsEspn.delete(plusAncienneCle);
+        }
+        return resultats;
+    })();
+
+    requetesResultatsEspnEnCours.set(cle, requete);
+    try {
+        return await requete;
+    } finally {
+        requetesResultatsEspnEnCours.delete(cle);
+    }
+}
+
 function cleCalendrier(match) {
     return [match.date, normaliserEquipeCalendrier(match.domicile), normaliserEquipeCalendrier(match.exterieur)].join("|");
 }
@@ -402,7 +450,7 @@ app.get("/api/matches/results", async (req, res) => {
             : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
         const matchs = Array.isArray(calendrier?.matchs) ? calendrier.matchs : [];
-        const resultats = matchs
+        const resultatsOpenFootball = matchs
             .filter(match => match && match.scoreDisponible === true && typeof match.date === "string" && match.date >= depuis)
             .map(match => ({
                 date: match.date,
@@ -415,11 +463,33 @@ app.get("/api/matches/results", async (req, res) => {
                 championnat: match.championnat
             }));
 
+        // L'API publique ESPN fournit les scores finaux même lorsque le calendrier
+        // OpenFootball n'a pas encore publié les résultats. L'application envoie
+        // seulement les dates réellement nécessaires (prévisions encore en attente).
+        const datesParametre = typeof req.query?.dates === "string"
+            ? [...new Set(req.query.dates.split(",").filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)))].slice(0, 14)
+            : [];
+        const dates = datesParametre.length > 0
+            ? datesParametre
+            : [depuis].filter(date => date >= new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+        const liguesEspn = ["eng.1", "eng.2", "fra.1", "esp.1", "ger.1", "ita.1", "ned.1", "por.1"];
+        const resultatsEspn = (await Promise.allSettled(dates.flatMap(date =>
+            liguesEspn.map(ligue => obtenirResultatsEspn(date, ligue))
+        ))).flatMap(resultat => resultat.status === "fulfilled" ? resultat.value : []);
+
+        const resultatsParMatch = new Map();
+        for (const resultat of [...resultatsOpenFootball, ...resultatsEspn]) {
+            const cle = [resultat.date, normaliserEquipeCalendrier(resultat.domicile), normaliserEquipeCalendrier(resultat.exterieur)].join("|");
+            resultatsParMatch.set(cle, resultat);
+        }
+        const resultats = [...resultatsParMatch.values()];
+
         return res.json({
             success: true,
-            source: calendrier.source,
+            source: resultatsEspn.length > 0 ? "ESPN + " + calendrier.source : calendrier.source + " (ESPN indisponible ou aucun résultat ce jour)",
             verifieLe: calendrier.verifieLe,
             depuis,
+            datesInterrogees: dates,
             nombre: resultats.length,
             resultats
         });

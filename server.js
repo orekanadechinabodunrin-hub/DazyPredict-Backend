@@ -124,6 +124,47 @@ function cleCalendrier(match) {
     return [match.date, normaliserEquipeCalendrier(match.domicile), normaliserEquipeCalendrier(match.exterieur)].join("|");
 }
 
+function appliquerCorrectionsCalendrier(matchs) {
+    // La LFP a officiellement déplacé PSG–Lyon du 25 au 26 octobre 2026.
+    // OpenFootball peut conserver l'horaire initial pendant un délai; appliquer
+    // cette correction vérifiée au calendrier distant comme au secours local.
+    const estPsgLyon = match => {
+        const domicile = normaliserEquipeCalendrier(match.domicile);
+        const exterieur = normaliserEquipeCalendrier(match.exterieur);
+        return (domicile.includes("parissaintgermain") || domicile === "psg") &&
+            (exterieur.includes("olympiquelyonnais") || exterieur === "lyon" || exterieur === "ol");
+    };
+
+    const psgLyon = matchs.filter(estPsgLyon);
+    if (psgLyon.length === 0) {
+        psgLyon.push({
+            domicile: "Paris Saint-Germain FC",
+            exterieur: "Olympique Lyonnais",
+            championnat: "French Ligue 1 2026/27",
+            scoreDisponible: false,
+            butsDomicile: null,
+            butsExterieur: null
+        });
+    }
+
+    const sourceAvecScore = psgLyon.find(match => match.scoreDisponible === true);
+    if (!sourceAvecScore && Date.now() > Date.parse("2026-10-26T20:30:00+01:00")) {
+        return matchs.filter(match => !estPsgLyon(match));
+    }
+
+    const matchCorrige = {
+        ...(sourceAvecScore || psgLyon.find(match => match.date === "2026-10-26") || psgLyon[0]),
+        date: "2026-10-26",
+        heure: "20:30",
+        championnat: psgLyon.find(match => match.championnat)?.championnat || "French Ligue 1 2026/27"
+    };
+
+    return [
+        ...matchs.filter(match => !estPsgLyon(match)),
+        matchCorrige
+    ];
+}
+
 function convertirCalendrierDistant(donnees) {
     if (!Array.isArray(donnees?.matches)) return [];
 
@@ -184,7 +225,8 @@ async function obtenirCalendrierActualise() {
                     });
                     return {
                         principal: championnat.principal === true,
-                        matchs: convertirCalendrierDistant(reponse.data)
+                        matchs: convertirCalendrierDistant(reponse.data),
+                        lastModified: reponse.headers?.["last-modified"] || null
                     };
                 })
             );
@@ -200,17 +242,16 @@ async function obtenirCalendrierActualise() {
 
             const matchsDistant = calendriersDistants.flatMap(calendrier => calendrier.matchs);
 
-            // Les sources distantes remplacent les fichiers locaux pour les
-            // compétitions européennes récupérées; les autres calendriers
-            // locaux restent disponibles comme complément.
-            const autresMatchsLocaux = chargerCalendrierOpenFootball()
-                .filter(match => !/(premier league|championship|bundesliga|la liga|liga|serie a|eredivisie|primeira liga)/i.test(match.championnat || ""));
+            // Toujours conserver les calendriers embarqués : ils complètent une
+            // source distante partielle ou momentanément inaccessible. Quand
+            // une source distante contient le même match, elle remplace la copie locale.
+            const matchsLocaux = chargerCalendrierOpenFootball();
             const matchsParCle = new Map();
-            for (const match of [...autresMatchsLocaux, ...matchsDistant]) {
+            for (const match of [...matchsLocaux, ...matchsDistant]) {
                 matchsParCle.set(cleCalendrier(match), match);
             }
 
-            const lastModified = reponse.headers?.["last-modified"];
+            const lastModified = calendrierPrincipal.lastModified;
             const dateSource = lastModified && Number.isFinite(Date.parse(lastModified))
                 ? new Date(lastModified).toISOString()
                 : null;
@@ -218,10 +259,10 @@ async function obtenirCalendrierActualise() {
             const nombreChampionnats = calendriersDistants.length;
             console.log(`✅ Calendrier OpenFootball en ligne vérifié (${nombreChampionnats} championnats, ${matchsDistant.length} matchs).`);
             return {
-                matchs: [...matchsParCle.values()].sort((a, b) =>
+                matchs: appliquerCorrectionsCalendrier([...matchsParCle.values()]).sort((a, b) =>
                     a.date.localeCompare(b.date) || (a.heure || "").localeCompare(b.heure || "")
                 ),
-                source: `OpenFootball en ligne (${saison}, ${nombreChampionnats} championnats) + autres fichiers locaux`,
+                source: `OpenFootball en ligne (${saison}, ${nombreChampionnats} championnats) + calendriers locaux`,
                 mode: "en_ligne",
                 verifieLe,
                 dateSource,
@@ -231,7 +272,7 @@ async function obtenirCalendrierActualise() {
         } catch (error) {
             console.warn("⚠️ Calendrier en ligne indisponible; utilisation des fichiers locaux :", error.message);
             return {
-                matchs: chargerCalendrierOpenFootball(),
+                matchs: appliquerCorrectionsCalendrier(chargerCalendrierOpenFootball()),
                 source: "Fichiers locaux OpenFootball (secours)",
                 mode: "secours_local",
                 verifieLe,

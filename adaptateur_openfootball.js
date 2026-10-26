@@ -7,6 +7,24 @@ const fichiersSaisons = [
   "matchs_2026_2027.json"
 ];
 
+function listerFichiersCalendrier() {
+  const dossierCalendriers = path.join(__dirname, "calendriers");
+  if (!fs.existsSync(dossierCalendriers)) return fichiersSaisons;
+
+  const fichiersAjoutes = [];
+  for (const saison of fs.readdirSync(dossierCalendriers, { withFileTypes: true })) {
+    if (!saison.isDirectory()) continue;
+    const dossierSaison = path.join(dossierCalendriers, saison.name);
+    for (const fichier of fs.readdirSync(dossierSaison)) {
+      if (fichier.endsWith(".json")) {
+        fichiersAjoutes.push(path.join("calendriers", saison.name, fichier));
+      }
+    }
+  }
+
+  return [...fichiersSaisons, ...fichiersAjoutes.sort()];
+}
+
 function normaliserEquipeCle(nom) {
   return String(nom || "")
     .normalize("NFD")
@@ -96,7 +114,7 @@ const resultat = {
 function chargerCalendrierOpenFootball() {
   const matchsParCle = new Map();
 
-  for (const fichier of fichiersSaisons) {
+  for (const fichier of listerFichiersCalendrier()) {
     const chemin = path.join(__dirname, fichier);
 
     if (!fs.existsSync(chemin)) continue;

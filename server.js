@@ -160,22 +160,51 @@ async function obtenirCalendrierActualise() {
     actualisationCalendrierEnCours = (async () => {
         const verifieLe = new Date().toISOString();
         const saison = obtenirSaisonOpenFootball();
-        const url = `https://raw.githubusercontent.com/openfootball/football.json/master/${saison}/en.1.json`;
+        // OpenFootball publie des fichiers séparés pour chaque championnat.
+        // Garder la Premier League comme source principale et charger aussi
+        // les grands championnats européens disponibles dans le même dépôt.
+        const championnatsOpenFootball = [
+            { fichier: "en.1.json", principal: true }, // Premier League
+            { fichier: "en.2.json" },                 // Championship
+            { fichier: "de.1.json" },                 // Bundesliga
+            { fichier: "es.1.json" },                 // La Liga
+            { fichier: "fr.1.json" },                 // Ligue 1
+            { fichier: "it.1.json" },                 // Serie A
+            { fichier: "nl.1.json" },                 // Eredivisie
+            { fichier: "pt.1.json" }                  // Primeira Liga
+        ];
 
         try {
-            const reponse = await axios.get(url, {
-                timeout: 8000,
-                headers: { Accept: "application/json" }
-            });
-            const matchsDistant = convertirCalendrierDistant(reponse.data);
+            const reponses = await Promise.allSettled(
+                championnatsOpenFootball.map(async championnat => {
+                    const url = `https://raw.githubusercontent.com/openfootball/football.json/master/${saison}/${championnat.fichier}`;
+                    const reponse = await axios.get(url, {
+                        timeout: 8000,
+                        headers: { Accept: "application/json" }
+                    });
+                    return {
+                        principal: championnat.principal === true,
+                        matchs: convertirCalendrierDistant(reponse.data)
+                    };
+                })
+            );
 
-            if (matchsDistant.length < 20) {
-                throw new Error("Le calendrier distant est incomplet ou invalide.");
+            const calendriersDistants = reponses
+                .filter(resultat => resultat.status === "fulfilled" && resultat.value.matchs.length > 0)
+                .map(resultat => resultat.value);
+            const calendrierPrincipal = calendriersDistants.find(calendrier => calendrier.principal);
+
+            if (!calendrierPrincipal || calendrierPrincipal.matchs.length < 20) {
+                throw new Error("Le calendrier distant de Premier League est incomplet ou invalide.");
             }
 
-            // Le calendrier distant remplace la Premier League locale; les autres compétitions locales restent disponibles.
+            const matchsDistant = calendriersDistants.flatMap(calendrier => calendrier.matchs);
+
+            // Les sources distantes remplacent les fichiers locaux pour les
+            // compétitions européennes récupérées; les autres calendriers
+            // locaux restent disponibles comme complément.
             const autresMatchsLocaux = chargerCalendrierOpenFootball()
-                .filter(match => !/premier league/i.test(match.championnat || ""));
+                .filter(match => !/(premier league|championship|bundesliga|la liga|liga|serie a|eredivisie|primeira liga)/i.test(match.championnat || ""));
             const matchsParCle = new Map();
             for (const match of [...autresMatchsLocaux, ...matchsDistant]) {
                 matchsParCle.set(cleCalendrier(match), match);
@@ -186,12 +215,13 @@ async function obtenirCalendrierActualise() {
                 ? new Date(lastModified).toISOString()
                 : null;
 
-            console.log(`✅ Calendrier OpenFootball en ligne vérifié (${matchsDistant.length} matchs).`);
+            const nombreChampionnats = calendriersDistants.length;
+            console.log(`✅ Calendrier OpenFootball en ligne vérifié (${nombreChampionnats} championnats, ${matchsDistant.length} matchs).`);
             return {
                 matchs: [...matchsParCle.values()].sort((a, b) =>
                     a.date.localeCompare(b.date) || (a.heure || "").localeCompare(b.heure || "")
                 ),
-                source: `OpenFootball en ligne (${saison}) + autres fichiers locaux`,
+                source: `OpenFootball en ligne (${saison}, ${nombreChampionnats} championnats) + autres fichiers locaux`,
                 mode: "en_ligne",
                 verifieLe,
                 dateSource,

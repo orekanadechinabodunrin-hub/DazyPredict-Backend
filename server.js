@@ -115,6 +115,48 @@ app.get("/api/oddslink/sports", async (req, res) => {
     }
 });
 // ========================================
+// TEST ODDSLINK - MATCHS DE FOOTBALL
+// ========================================
+
+app.get("/api/oddslink/events", async (req, res) => {
+    if (!process.env.ODDSLINK_API_KEY) {
+        return res.status(503).json({
+            success: false,
+            message: "La clé OddsLink n'est pas configurée."
+        });
+    }
+
+    try {
+        const response = await axios.get(
+            "https://oddslink.app/v1/sports/soccer/events",
+            {
+                headers: {
+                    "X-API-Key": process.env.ODDSLINK_API_KEY,
+                    Accept: "application/json"
+                },
+                timeout: 15000
+            }
+        );
+
+        return res.json({
+            success: true,
+            source: "OddsLink",
+            donnees: response.data
+        });
+    } catch (error) {
+        console.error(
+            "Erreur OddsLink /events :",
+            error.response?.status || error.message
+        );
+
+        return res.status(502).json({
+            success: false,
+            message: "Impossible de récupérer les matchs auprès d'OddsLink.",
+            statutSource: error.response?.status || null
+        });
+    }
+});
+// ========================================
 // VÉRIFICATION DE LA CLÉ API
 // ========================================
 

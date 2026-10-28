@@ -34,9 +34,9 @@ app.get("/api/oddize/sports", async (req, res) => {
 
     try {
         const response = await oddizeApi.get("/sports", {
-            headers: {
-                "X-API-Key": process.env.ODDIZE_API_KEY
-            }
+           headers: {
+    "Authorization": `Bearer ${process.env.ODDIZE_API_KEY}`
+}
         });
 
         const sports = Array.isArray(response.data?.sports)

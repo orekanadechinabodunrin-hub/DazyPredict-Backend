@@ -157,6 +157,56 @@ app.get("/api/oddslink/events", async (req, res) => {
     }
 });
 // ========================================
+// TEST ODDSLINK - COTES PREMIER LEAGUE
+// ========================================
+
+app.get("/api/oddslink/odds", async (req, res) => {
+    if (!process.env.ODDSLINK_API_KEY) {
+        return res.status(503).json({
+            success: false,
+            message: "La clé OddsLink n'est pas configurée."
+        });
+    }
+
+    try {
+        const response = await axios.get(
+            "https://oddslink.app/v1/sports/soccer/odds",
+            {
+                params: {
+                    league: "epl",
+                    markets: "h2h"
+                },
+                headers: {
+                    "X-API-Key": process.env.ODDSLINK_API_KEY,
+                    Accept: "application/json"
+                },
+                timeout: 30000
+            }
+        );
+
+        return res.json({
+            success: true,
+            source: "OddsLink",
+            championnat: "Premier League",
+            nombreMatchs: Array.isArray(response.data)
+                ? response.data.length
+                : 0,
+            donnees: response.data
+        });
+    } catch (error) {
+        console.error(
+            "Erreur OddsLink /odds :",
+            error.response?.status || error.message
+        );
+
+        return res.status(502).json({
+            success: false,
+            message: "Impossible de récupérer les cotes OddsLink.",
+            statutSource: error.response?.status || null
+        });
+    }
+});
+// ========================================
 // VÉRIFICATION DE LA CLÉ API
 // ========================================
 

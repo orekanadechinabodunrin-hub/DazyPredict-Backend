@@ -55,11 +55,15 @@ app.get("/api/oddize/sports", async (req, res) => {
             error.response?.status || error.message
         );
 
-        return res.status(502).json({
-            success: false,
-            message: "Impossible de récupérer les sports auprès d'Oddize.",
-            statutSource: error.response?.status || null
-        });
+       return res.status(502).json({
+    success: false,
+    message: "Impossible de récupérer les sports auprès d'Oddize.",
+    statutSource: error.response?.status || null,
+    detailsSource: error.response?.data?.message
+        || error.response?.data?.detail
+        || error.response?.data?.error
+        || "Oddize n'a fourni aucun détail."
+});
     }
 });
 // ========================================

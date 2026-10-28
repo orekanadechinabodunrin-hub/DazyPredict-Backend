@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -13,7 +12,56 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
+// ========================================
+// CONNEXION ODDIZE — TEST GRATUIT DES SPORTS
+// ========================================
 
+const oddizeApi = axios.create({
+    baseURL: "https://oddize.com/api/v1",
+    timeout: 10000,
+    headers: {
+        Accept: "application/json"
+    }
+});
+
+app.get("/api/oddize/sports", async (req, res) => {
+    if (!process.env.ODDIZE_API_KEY) {
+        return res.status(503).json({
+            success: false,
+            message: "La clé Oddize n'est pas configurée sur le serveur."
+        });
+    }
+
+    try {
+        const response = await oddizeApi.get("/sports", {
+            headers: {
+                "X-API-Key": process.env.ODDIZE_API_KEY
+            }
+        });
+
+        const sports = Array.isArray(response.data?.sports)
+            ? response.data.sports
+            : [];
+
+        return res.json({
+            success: true,
+            source: "Oddize",
+            nombreSports: sports.length,
+            sports
+        });
+    } catch (error) {
+        console.error(
+            "Erreur Oddize /sports :",
+            error.response?.status || error.message
+        );
+
+        return res.status(502).json({
+            success: false,
+            message: "Impossible de récupérer les sports auprès d'Oddize.",
+            statutSource: error.response?.status || null
+        });
+    }
+});
 // ========================================
 // VÉRIFICATION DE LA CLÉ API
 // ========================================

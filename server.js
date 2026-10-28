@@ -51,9 +51,10 @@ app.get("/api/oddize/sports", async (req, res) => {
         });
     } catch (error) {
         console.error(
-            "Erreur Oddize /sports :",
-            error.response?.status || error.message
-        );
+    "Erreur Oddize /sports :",
+    error.response?.status || error.message,
+    JSON.stringify(error.response?.data || {})
+);
 
        return res.status(502).json({
     success: false,

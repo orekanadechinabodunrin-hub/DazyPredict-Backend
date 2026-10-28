@@ -68,6 +68,53 @@ app.get("/api/oddize/sports", async (req, res) => {
     }
 });
 // ========================================
+// TEST ODDSLINK
+// ========================================
+
+app.get("/api/oddslink/sports", async (req, res) => {
+    if (!process.env.ODDSLINK_API_KEY) {
+        return res.status(503).json({
+            success: false,
+            message: "La clé OddsLink n'est pas configurée."
+        });
+    }
+
+    try {
+        const response = await axios.get(
+            "https://oddslink.app/v1/sports",
+            {
+                headers: {
+                    "X-API-Key": process.env.ODDSLINK_API_KEY,
+                    Accept: "application/json"
+                },
+                timeout: 15000
+            }
+        );
+
+        const sports = Array.isArray(response.data)
+            ? response.data
+            : response.data?.sports || [];
+
+        return res.json({
+            success: true,
+            source: "OddsLink",
+            nombreSports: sports.length,
+            sports
+        });
+    } catch (error) {
+        console.error(
+            "Erreur OddsLink /sports :",
+            error.response?.status || error.message
+        );
+
+        return res.status(502).json({
+            success: false,
+            message: "Impossible de récupérer les sports auprès d'OddsLink.",
+            statutSource: error.response?.status || null
+        });
+    }
+});
+// ========================================
 // VÉRIFICATION DE LA CLÉ API
 // ========================================
 

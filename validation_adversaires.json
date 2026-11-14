@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "configuration": {
+    "prior": 20,
+    "demiVie": 365
+  },
+  "empreinteFichier": "3dea8569e2a23a8424cccaa9f8c2b92c13317a97fbe973e6b9e9c77bb6fa378b",
+  "gainGlobal": true,
+  "competitionsEligibles": [
+    "eng.1",
+    "esp.1",
+    "ita.1",
+    "por.1",
+    "ned.1",
+    "fra.1",
+    "ger.1"
+  ],
+  "dateEvaluation": "2026-11-14",
+  "activationAutomatique": false
+}

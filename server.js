@@ -7,6 +7,8 @@ const {
     chargerCalendrierOpenFootball
 } = require("./adaptateur_openfootball");
 const { calculerProbabilites, normaliserNomEquipe } = require("./moteur_dazypredict");
+const { calculerPredictionRenforcee } = require("./prediction_renforcee.cjs");
+const { adversairesAutorises } = require("./activation_adversaires.cjs");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -1341,31 +1343,29 @@ app.get("/api/team/:teamId/form", verifierApiFootball, async (req, res) => {
              });
          }
 
-         const matchsParCle = new Map();
-         const cleHistorique = match => [
-             match.date,
-             normaliserNomEquipe(match.domicile),
-             normaliserNomEquipe(match.exterieur)
-         ].join("|");
-
-         for (const match of chargerMatchsHistoriques()) {
-             matchsParCle.set(cleHistorique(match), match);
+         let historiqueLocal = [];
+         try { historiqueLocal = chargerMatchsHistoriques(); }
+         catch (_) { console.warn("Historique initial illisible ; tentative avec le complément vérifié."); }
+         const options = { dateReference, competition };
+         const runtime = { utiliserAdversaires: adversairesAutorises() };
+         const local = calculerPredictionRenforcee(historiqueLocal, domicile, exterieur, options, runtime);
+         if (local.success && local.historiqueRenforce?.charge && local.historiqueRenforce.ageSnapshotJours === 0) {
+             return res.json({ ...local, sourceCalendrier: "Historique local vérifié", verifieLe: local.historiqueRenforce.recupereLe, modeCalendrier: "historique-verifie" });
          }
-
-         // Les résultats terminés de la source du calendrier complètent l'historique local.
-         // Ils remplacent les éventuels doublons et le moteur exclut ensuite tout match futur.
-         const calendrier = await obtenirCalendrierActualise();
-         for (const match of calendrier.matchs) {
-             if (match.scoreDisponible && match.date < dateReference) {
-                 matchsParCle.set(cleHistorique(match), match);
-             }
+         let calendrier;
+         try { calendrier = await obtenirCalendrierActualise(); }
+         catch (error) {
+             if (local.success) return res.json({ ...local, sourceCalendrier: "Historique local en secours", modeCalendrier: "historique-local-secours" });
+             throw error;
          }
-
-         const resultat = calculerProbabilites(
-             [...matchsParCle.values()],
-             domicile,
-             exterieur,
-             { dateReference, competition }
+         // Ne pas masquer les scores contradictoires ni mélanger les compétitions.
+         // Le moteur valide, dédoublonne et exclut les résultats du jour/futurs.
+         const historique = [
+             ...historiqueLocal,
+             ...(Array.isArray(calendrier.matchs) ? calendrier.matchs : []).filter(match => match.scoreDisponible && match.date < dateReference)
+         ];
+         const resultat = calculerPredictionRenforcee(
+             historique, domicile, exterieur, options, runtime
          );
 
          if (resultat.success) {

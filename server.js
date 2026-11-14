@@ -11,6 +11,7 @@ const { calculerPredictionRenforcee } = require("./prediction_renforcee.cjs");
 const { adversairesAutorises } = require("./activation_adversaires.cjs");
 
 const app = express();
+require("./cotes_du_jour.cjs").installerCotesDuJour(app, axios, () => process.env.ODDSLINK_API_KEY);
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());

@@ -1,5 +1,5 @@
 """Snapshot local ESPN, résultats à 90 minutes uniquement. Aucun compte payant."""
-import concurrent.futures, datetime, hashlib, json, pathlib, sys, urllib.request
+import concurrent.futures, datetime, hashlib, json, pathlib, sys, urllib.request, re
 
 COMPETITIONS = {
     'eng.1':'English Premier League', 'eng.2':'English Championship',
@@ -11,14 +11,29 @@ COMPETITIONS = {
     'fifa.worldq.caf':'FIFA World Cup Qualifying - CAF'
 }
 
+def cache_reutilisable(saved,code,year,cutoff,maintenant=None):
+    try:
+        maintenant=maintenant or datetime.datetime.now(datetime.timezone.utc)
+        age=(maintenant-datetime.datetime.fromisoformat(saved['recupereLe'])).total_seconds()
+        if saved.get('code')!=code or saved.get('annee')!=year or not 0<=age<30*86400 or saved.get('cutoff','')>cutoff or not isinstance(saved.get('matches'),list):return False
+        # Au changement d'année, relire la dernière journée encore exclue la veille.
+        annee_complete=year<int(cutoff[:4]) and saved.get('cutoff','')>f'{year}-12-31'
+        return annee_complete or (saved.get('cutoff')==cutoff and age<86400)
+    except (KeyError,TypeError,ValueError):return False
+
 def convertir(event, code, cutoff):
     try:
-        day = event['date'][:10]
+        instant=datetime.datetime.fromisoformat(event['date'].replace('Z','+00:00'))
+        if instant.tzinfo is None: return None
+        day=instant.astimezone(datetime.timezone.utc).date().isoformat()
         if datetime.date.fromisoformat(day).isoformat() != day or day >= cutoff: return None
         c = event['competitions'][0]
         status = c.get('status', event.get('status', {})).get('type', {})
         # Les scores après prolongation/tirs au but ne sont pas des scores 1N2 à 90 min.
         if status.get('completed') is not True or status.get('name') != 'STATUS_FULL_TIME': return None
+        clock=c.get('status',event.get('status',{})).get('displayClock','')
+        minute=re.match(r'^(\d+)',str(clock))
+        if minute and int(minute.group(1))>90: return None
         h, = [t for t in c['competitors'] if t.get('homeAway') == 'home']
         a, = [t for t in c['competitors'] if t.get('homeAway') == 'away']
         hid, aid, eid = str(h['team']['id']), str(a['team']['id']), str(event['id'])
@@ -50,17 +65,21 @@ def dedoublonner(rows):
 
 def main():
     destination=pathlib.Path(sys.argv[1]); cutoff=sys.argv[2]
-    datetime.date.fromisoformat(cutoff)
+    if datetime.date.fromisoformat(cutoff).isoformat()!=cutoff: raise ValueError('Date non canonique')
+    if cutoff>datetime.datetime.now(datetime.timezone.utc).date().isoformat(): raise ValueError('Collecte future interdite')
     cache=pathlib.Path(sys.argv[3]);cache.mkdir(parents=True,exist_ok=True)
     def fetch(job):
         code,year=job; url=f'https://site.api.espn.com/apis/site/v2/sports/soccer/{code}/scoreboard?dates={year}&limit=1000'
         file=cache/f'{code}-{year}.json'
         if file.exists():
             saved=json.loads(file.read_text(encoding='utf-8'))
-            age=(datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(saved['recupereLe'])).total_seconds()
-            if year<int(cutoff[:4]) or (saved.get('cutoff')==cutoff and age<86400): return saved
+            if cache_reutilisable(saved,code,year,cutoff): return saved
         request=urllib.request.Request(url,headers={'User-Agent':'DazyPredict-local-research/1.0'})
-        with urllib.request.urlopen(request,timeout=40) as response: raw=json.load(response)
+        with urllib.request.urlopen(request,timeout=40) as response:
+            content=response.read(8*1024*1024+1)
+            if len(content)>8*1024*1024: raise ValueError('Réponse trop volumineuse')
+            raw=json.loads(content)
+        if [x.get('slug') for x in raw.get('leagues',[])]!=[code]: raise ValueError(f'{code}: identité de compétition non confirmée')
         events=raw.get('events')
         if not isinstance(events,list) or len(events)>=1000: raise ValueError(f'{code}/{year}: réponse absente ou potentiellement tronquée')
         rows=[r for e in events if (r:=convertir(e,code,cutoff)) is not None]
@@ -68,7 +87,7 @@ def main():
                     recupereLe=datetime.datetime.now(datetime.timezone.utc).isoformat(),cutoff=cutoff)
         file.write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8')
         return report
-    jobs=[(code,year) for code in COMPETITIONS for year in (2024,2025,2026)]
+    jobs=[(code,year) for code in COMPETITIONS for year in range(2024,int(cutoff[:4])+1)]
     reports=[]; errors=[]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         futures={pool.submit(fetch,job):job for job in jobs}

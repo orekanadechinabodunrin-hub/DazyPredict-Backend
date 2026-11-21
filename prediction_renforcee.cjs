@@ -1,16 +1,18 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const base=require('./moteur_dazypredict'), moteur=require('./moteur_adversaires.cjs');
+const {choixDonnees}=require('./donnees_valides.cjs');
 const CODES=new Set(['eng.1','eng.2','esp.1','fra.1','ita.1','ger.1','ned.1','por.1','uefa.champions','caf.nations_qual','fifa.worldq.caf']);
 let cache=null;
 function lireSnapshot(dossier=__dirname){
- const file=path.join(dossier,'historique_espn_verifie.json'),stat=fs.statSync(file);
+ const choix=choixDonnees(dossier);
+ const file=path.join(choix.dossier,'historique_espn_verifie.json'),stat=fs.statSync(file);
  if(stat.size>12*1024*1024)throw Error('Snapshot trop volumineux');
- if(cache?.file===file&&cache.mtime===stat.mtimeMs&&cache.size===stat.size)return cache;
+ if(cache?.file===file&&cache.mtime===stat.mtimeMs&&cache.size===stat.size)return {...cache,dossier:choix.dossier,origine:choix.origine,motifChoix:choix.motif};
  const raw=fs.readFileSync(file),data=JSON.parse(raw);
  if(data.version!==1||data.complet!==true||!moteur.dateValide(data.avant)||!Array.isArray(data.matches))throw Error('Snapshot non validé');
  if(data.matches.some(r=>!CODES.has(r.codeCompetition)))throw Error('Compétition non autorisée');
- cache={file,mtime:stat.mtimeMs,size:stat.size,data,sha256:crypto.createHash('sha256').update(raw).digest('hex')};return cache;
+ cache={file,mtime:stat.mtimeMs,size:stat.size,data,dossier:choix.dossier,origine:choix.origine,motifChoix:choix.motif,sha256:crypto.createHash('sha256').update(raw).digest('hex')};return cache;
 }
 function arrondir(p){const x=p.map(v=>Math.floor(v*100)),order=p.map((v,i)=>({i,reste:v*100-x[i]})).sort((a,b)=>b.reste-a.reste);for(let i=0,n=100-x.reduce((a,b)=>a+b);i<n;i++)x[order[i%3].i]++;return x;}
 function calculerPredictionRenforcee(legacy,domicile,exterieur,options={},runtime={}){
@@ -33,10 +35,10 @@ function calculerPredictionRenforcee(legacy,domicile,exterieur,options={},runtim
  // Conserver les contradictions pour que le moteur les rejette, au lieu d'écraser avec Map.set.
  const reference=base.calculerProbabilites([...legacy,...rows],domicile,exterieur,{...options,dateObservation:avant});
  const age=Math.max(0,(Date.parse(aujourdhui)-Date.parse(snapshot.data.avant))/86400000);
- const meta={charge:true,source:'ESPN',resultatsAjoutes:rows.length,avant:snapshot.data.avant,recupereLe:snapshot.data.recupereLe,ageSnapshotJours:age,empreinte:snapshot.sha256,adversairesActifs:false};
+ const meta={charge:true,source:'ESPN',resultatsAjoutes:rows.length,avant:snapshot.data.avant,recupereLe:snapshot.data.recupereLe,ageSnapshotJours:age,empreinte:snapshot.sha256,adversairesActifs:false,origineDonnees:snapshot.origine,...(snapshot.motifChoix?{motifActualisation:snapshot.motifChoix}:{})};
  if(!reference.success||runtime.utiliserAdversaires!==true||age>7)return {...reference,historiqueRenforce:meta};
  let validation;
- try{validation=JSON.parse(fs.readFileSync(path.join(dossier,'validation_adversaires.json'),'utf8'));}catch{return {...reference,historiqueRenforce:{...meta,motif:'Validation du candidat absente'}};}
+ try{validation=JSON.parse(fs.readFileSync(path.join(snapshot.dossier,'validation_adversaires.json'),'utf8'));}catch{return {...reference,historiqueRenforce:{...meta,motif:'Validation du candidat absente'}};}
  if(validation.empreinteFichier!==snapshot.sha256||validation.gainGlobal!==true||!validation.competitionsEligibles?.includes(code)||
   ![5,10,20].includes(validation.configuration?.prior)||![180,365].includes(validation.configuration?.demiVie))
   return {...reference,historiqueRenforce:{...meta,motif:'Compétition, paramètres ou données non validés pour le candidat'}};

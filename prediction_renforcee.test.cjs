@@ -7,7 +7,7 @@ function scenario(t){
  fs.writeFileSync(path.join(dir,'historique_espn_verifie.json'),JSON.stringify(snapshot));
  const validation={configuration:{prior:20,demiVie:365},gainGlobal:true,competitionsEligibles:['eng.1'],empreinteFichier:crypto.createHash('sha256').update(fs.readFileSync(path.join(dir,'historique_espn_verifie.json'))).digest('hex')};
  fs.writeFileSync(path.join(dir,'validation_adversaires.json'),JSON.stringify(validation));
- t.after(()=>{for(const f of ['historique_espn_verifie.json','validation_adversaires.json'])if(fs.existsSync(path.join(dir,f)))fs.unlinkSync(path.join(dir,f));fs.rmdirSync(dir);});
+ t.after(()=>{for(const f of ['historique_espn_verifie.json','validation_adversaires.json','historique_actif.json'])if(fs.existsSync(path.join(dir,f)))fs.unlinkSync(path.join(dir,f));fs.rmdirSync(dir);});
  return {dir,rows,validation,opt:{dateReference:'2025-04-02',competition:'English Premier League'},run(extra={}){return predire([],'Alpha','Beta',this.opt,{dossier:dir,aujourdhui:'2025-04-01',...extra});}};
 }
 test('history enrichment works without activating the candidate',t=>{
@@ -34,4 +34,12 @@ test('contradictory legacy results stay visible to deduplication rather than ove
  const s=scenario(t),legacy=[{...s.rows[0],butsDomicile:20}];
  const r=predire(legacy,'Alpha','Beta',s.opt,{dossier:s.dir,aujourdhui:'2025-04-01'});
  assert.equal(r.analyseDetaillee.qualiteHistorique.conflits,1);assert.equal(r.historique.matchsUtilises,79);
+});
+test('an invalid update pointer keeps the original predictions and approved dataset',t=>{
+ const s=scenario(t),before=s.run({utiliserAdversaires:true});
+ fs.writeFileSync(path.join(s.dir,'historique_actif.json'),JSON.stringify({version:1,avant:'2025-04-01',empreinte:'a'.repeat(64)}));
+ const after=s.run({utiliserAdversaires:true});
+ assert.equal(after.success,true);assert.deepEqual(after.probabilitesPrecises,before.probabilitesPrecises);
+ assert.equal(after.historiqueRenforce.empreinte,before.historiqueRenforce.empreinte);assert.equal(after.historiqueRenforce.origineDonnees,'snapshot-initial');
+ assert.ok(after.historiqueRenforce.motifActualisation);assert.equal(after.historiqueRenforce.adversairesActifs,true);
 });

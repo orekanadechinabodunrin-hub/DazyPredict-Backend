@@ -1,0 +1,40 @@
+name: Actualisation historique verifie
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 4 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: historique-verifie
+  cancel-in-progress: false
+jobs:
+  actualiser:
+    # Pas de consommation de runner prive facturee si la visibilite change.
+    if: github.event.repository.private == false && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Tests avant collecte
+        run: |
+          python3 -m unittest discover -p 'test_*.py'
+          node --test fiabilite_moteur.test.cjs adversaires.test.cjs prediction_renforcee.test.cjs activation_adversaires.test.cjs donnees_valides.test.cjs
+      - name: Collecter evaluer et preparer le pointeur
+        run: python3 actualiser_historique.py --cache "$RUNNER_TEMP/cache-historique" --sortie "$RUNNER_TEMP/candidat-historique" --activer
+      - name: Publier uniquement les donnees validees
+        run: |
+          empreinte=$(python3 -c "import json;print(json.load(open('historique_actif.json'))['empreinte'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- historique_actif.json ".historiques-valides/$empreinte"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Actualise les resultats verifies et leur validation"
+          git push

@@ -1,1 +1,3 @@
 historique_espn_verifie.json text eol=lf
+# Bundles valides : conserver les octets utilises pour SHA-256.
+.historiques-valides/** -text -eol

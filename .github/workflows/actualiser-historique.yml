@@ -26,7 +26,7 @@ jobs:
       - name: Tests avant collecte
         run: |
           python3 -m unittest discover -p 'test_*.py'
-          node --test fiabilite_moteur.test.cjs adversaires.test.cjs prediction_renforcee.test.cjs activation_adversaires.test.cjs donnees_valides.test.cjs
+          npm test
       - name: Collecter evaluer et preparer le pointeur
         run: python3 actualiser_historique.py --cache "$RUNNER_TEMP/cache-historique" --sortie "$RUNNER_TEMP/candidat-historique" --activer
       - name: Publier uniquement les donnees validees

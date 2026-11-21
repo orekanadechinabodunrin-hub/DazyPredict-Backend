@@ -1,0 +1,210 @@
+[
+  {
+    "code": "ita.1",
+    "id": "2572",
+    "canonique": "Como",
+    "aliases": [
+      "Como 1907"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ita.1/teams?limit=1000",
+      "https://comofootball.com/en/about-us/"
+    ]
+  },
+  {
+    "code": "ita.1",
+    "id": "115",
+    "canonique": "Parma",
+    "aliases": [
+      "Parma Calcio 1913"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ita.1/teams?limit=1000",
+      "https://www.parmacalcio1913.com/"
+    ]
+  },
+  {
+    "code": "ger.1",
+    "id": "131",
+    "canonique": "Bayer Leverkusen",
+    "aliases": [
+      "Bayer 04 Leverkusen"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/teams?limit=1000",
+      "https://www.bayer04.de/de-de/page/bayer-04"
+    ]
+  },
+  {
+    "code": "ger.1",
+    "id": "10388",
+    "canonique": "SV Elversberg",
+    "aliases": [
+      "SV 07 Elversberg"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/teams?limit=1000",
+      "https://sv07elversberg.de/"
+    ]
+  },
+  {
+    "code": "ger.1",
+    "id": "7911",
+    "canonique": "TSG Hoffenheim",
+    "aliases": [
+      "TSG 1899 Hoffenheim"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/teams?limit=1000",
+      "https://events.tsg-hoffenheim.de/impressum/"
+    ]
+  },
+  {
+    "code": "ned.1",
+    "id": "147",
+    "canonique": "NEC Nijmegen",
+    "aliases": [
+      "NEC"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000",
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000"
+    ]
+  },
+  {
+    "code": "ned.1",
+    "id": "148",
+    "canonique": "PSV Eindhoven",
+    "aliases": [
+      "PSV"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000",
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000"
+    ]
+  },
+  {
+    "code": "ned.1",
+    "id": "2566",
+    "canonique": "Excelsior",
+    "aliases": [
+      "SBV Excelsior"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000",
+      "https://excelsiorrotterdam.nl/"
+    ]
+  },
+  {
+    "code": "ned.1",
+    "id": "3736",
+    "canonique": "SC Cambuur",
+    "aliases": [
+      "SC Cambuur-Leeuwarden"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000",
+      "https://www.cambuur.nl/contact/"
+    ]
+  },
+  {
+    "code": "ned.1",
+    "id": "3735",
+    "canonique": "Telstar",
+    "aliases": [
+      "Telstar 1963"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/ned.1/teams?limit=1000",
+      "https://sctelstar.nl/algemene-voorwaarden"
+    ]
+  },
+  {
+    "code": "fra.1",
+    "id": "2502",
+    "canonique": "Nice",
+    "aliases": [
+      "OGC Nice"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/teams?limit=1000",
+      "https://www.ogcnice.com/fr/"
+    ]
+  },
+  {
+    "code": "fra.1",
+    "id": "175",
+    "canonique": "Lens",
+    "aliases": [
+      "Racing Club de Lens"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/teams?limit=1000",
+      "https://www.rclens.fr/fr/club/rclens-depuis-1906"
+    ]
+  },
+  {
+    "code": "fra.1",
+    "id": "166",
+    "canonique": "Lille",
+    "aliases": [
+      "Lille OSC"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/teams?limit=1000",
+      "https://www.losc.fr/"
+    ]
+  },
+  {
+    "code": "fra.1",
+    "id": "167",
+    "canonique": "Lyon",
+    "aliases": [
+      "Olympique Lyonnais"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/teams?limit=1000",
+      "https://www.losc.fr/"
+    ]
+  },
+  {
+    "code": "fra.1",
+    "id": "180",
+    "canonique": "Strasbourg",
+    "aliases": [
+      "RC Strasbourg Alsace"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/teams?limit=1000",
+      "https://billetterie.rcstrasbourgalsace.fr/media/cgv_rcsa_billetterie_2025_2026.pdf"
+    ]
+  },
+  {
+    "code": "fra.1",
+    "id": "6997",
+    "canonique": "Brest",
+    "aliases": [
+      "Stade Brestois 29"
+    ],
+    "verifieLe": "2026-11-21",
+    "sources": [
+      "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/teams?limit=1000",
+      "https://billetterie.sb29.bzh/fr/infos-pratiques/faq"
+    ]
+  }
+]

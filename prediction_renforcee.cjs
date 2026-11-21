@@ -15,7 +15,7 @@ function lireSnapshot(dossier=__dirname){
  cache={file,mtime:stat.mtimeMs,size:stat.size,data,dossier:choix.dossier,origine:choix.origine,motifChoix:choix.motif,sha256:crypto.createHash('sha256').update(raw).digest('hex')};return cache;
 }
 function arrondir(p){const x=p.map(v=>Math.floor(v*100)),order=p.map((v,i)=>({i,reste:v*100-x[i]})).sort((a,b)=>b.reste-a.reste);for(let i=0,n=100-x.reduce((a,b)=>a+b);i<n;i++)x[order[i%3].i]++;return x;}
-function calculerPredictionRenforcee(legacy,domicile,exterieur,options={},runtime={}){
+function calculerPredictionRenforceeInterne(legacy,domicile,exterieur,options={},runtime={}){
  const dossier=runtime.dossier||__dirname,aujourdhui=runtime.aujourdhui||new Date().toISOString().slice(0,10);
  if(!moteur.dateValide(options.dateReference)||!moteur.dateValide(aujourdhui))return base.calculerProbabilites(legacy,domicile,exterieur,options);
  const avant=options.dateReference<aujourdhui?options.dateReference:aujourdhui;
@@ -63,5 +63,23 @@ function calculerPredictionRenforcee(legacy,domicile,exterieur,options={},runtim
    doubleChance:{domicileOuNul:100*(result.p[0]+result.p[1]),domicileOuExterieur:100*(result.p[0]+result.p[2]),nulOuExterieur:100*(result.p[1]+result.p[2])},
    incertitudeNormalisee:-result.p.reduce((s,p)=>s+p*Math.log(p),0)/Math.log(3),note:'La forme récente est descriptive. L’ajustement aux adversaires est déjà inclus dans les probabilités.'},
   historiqueRenforce:{...meta,adversairesActifs:true},avertissement:'Candidat évalué rétrospectivement ; compositions, blessures et xG non intégrés. Aucune garantie sur une rencontre.'};
+}
+function calculerPredictionRenforcee(legacy,domicile,exterieur,options={},runtime={}){
+ const {resoudreAliasVerifie,aliasDeclare}=require('./identites_equipes.cjs');
+ if(!aliasDeclare(domicile)&&!aliasDeclare(exterieur))return calculerPredictionRenforceeInterne(legacy,domicile,exterieur,options,runtime);
+ let home=null,away=null,code=null;
+ try{
+  const now=runtime.aujourdhui||new Date().toISOString().slice(0,10);
+  if(!moteur.dateValide(options.dateReference)||!moteur.dateValide(now))throw Error('Date invalide');
+  const snapshot=lireSnapshot(runtime.dossier||__dirname);
+  if(snapshot.data.avant>now)throw Error('Snapshot futur');
+  const avant=options.dateReference<now?options.dateReference:now;
+  const rows=moteur.preparerHistorique(snapshot.data.matches,avant).matches;
+  const codes=[...new Set(rows.filter(r=>base.normaliserCompetition(r.championnat)===base.normaliserCompetition(options.competition)).map(r=>r.codeCompetition))];
+  if(codes.length===1){code=codes[0];home=resoudreAliasVerifie(rows,code,domicile);away=resoudreAliasVerifie(rows,code,exterieur);}
+ }catch(_){/* Les erreurs de source suivent le chemin de secours déjà contrôlé. */}
+ const r=calculerPredictionRenforceeInterne(legacy,home?.nom||domicile,away?.nom||exterieur,options,runtime);
+ if(!r.success||(!home&&!away))return r;
+ return {...r,equipeDomicile:domicile,equipeExterieure:exterieur,identitesEquipes:{competition:code,domicile:home,exterieur:away}};
 }
 module.exports={lireSnapshot,calculerPredictionRenforcee};

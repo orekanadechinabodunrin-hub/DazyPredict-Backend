@@ -1332,12 +1332,18 @@ app.get("/api/team/:teamId/form", verifierApiFootball, async (req, res) => {
      try {
          const domicile = req.query.domicile;
          const exterieur = req.query.exterieur;
-         const dateReference = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
-             ? req.query.date
-             : new Date().toISOString().slice(0, 10);
-         const competition = typeof req.query.competition === "string" ? req.query.competition : "";
+         const dateDemandee = req.query.date;
+         if (dateDemandee !== undefined && (typeof dateDemandee !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateDemandee) ||
+             !Number.isFinite(Date.parse(dateDemandee + "T00:00:00Z")) || new Date(dateDemandee + "T00:00:00Z").toISOString().slice(0,10) !== dateDemandee)) {
+             return res.status(400).json({ success:false, message:"Date invalide : utiliser une date réelle au format AAAA-MM-JJ." });
+         }
+         if (req.query.competition !== undefined && (typeof req.query.competition !== "string" || req.query.competition.length > 160)) {
+             return res.status(400).json({ success:false, message:"Compétition invalide." });
+         }
+         const dateReference = dateDemandee === undefined ? new Date().toISOString().slice(0,10) : dateDemandee;
+         const competition = req.query.competition || "";
 
-         if (!domicile || !exterieur) {
+         if (typeof domicile !== "string" || typeof exterieur !== "string" || !domicile.trim() || !exterieur.trim() || domicile.length > 160 || exterieur.length > 160) {
              return res.status(400).json({
                  success: false,
                  message: "Précise les paramètres domicile et exterieur."

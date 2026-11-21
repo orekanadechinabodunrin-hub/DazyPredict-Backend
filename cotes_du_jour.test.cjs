@@ -31,7 +31,7 @@ test('duplicate identities with contradictory prices are excluded',()=>{
 });
 test('upstream request is football-wide, decimal, full-game, date bounded and cached',async()=>{
  let n=0;const fn=creerControleur({key:()=> 'test-placeholder',now:()=>now,get:async(url,o)=>{
-  n++;assert.equal(o.params.league,undefined);assert.equal(o.params.bookmakers,'1xbet');assert.equal(o.params.oddsFormat,'decimal');assert.equal(o.params.periods,'full');assert.equal(o.params.commenceTimeFrom,query.debut);return {data:[row()]};
+  n++;assert.equal(o.params.league,undefined);assert.equal(o.params.markets,'h2h,totals');assert.equal(o.params.bookmakers,'1xbet');assert.equal(o.params.oddsFormat,'decimal');assert.equal(o.params.periods,'full');assert.equal(o.params.commenceTimeFrom,query.debut);return {data:[row()]};
  }});
  const results=await Promise.all([call(fn),call(fn)]);assert.equal(n,1);assert.equal(results[0].body.nombreMatchs,1);await call(fn);assert.equal(n,1);
 });
@@ -45,3 +45,10 @@ test('provider errors and missing configuration do not expose credentials or fab
  const r=await call(fn);assert.equal(r.status,429);assert.equal(r.body.success,false);assert.ok(!JSON.stringify(r).includes('private-request-detail'));assert.ok(!JSON.stringify(r).includes('test-placeholder'));
  assert.equal((await call(creerControleur({key:()=>'',now:()=>now,get:async()=>{throw Error();}}))).status,503);
 });
+
+test('totals extend the fixture without changing its original h2h; stale totals leave h2h intact',()=>{
+ const x=row(),book=x.bookmakers[0];book.markets.push({key:'totals',last_update:'2026-11-15T09:59:00Z',outcomes:[{name:'Over',point:1.5,price:1.4},{name:'Under',point:1.5,price:3}]});
+ let r=filtrerCotes([x],window(),now);assert.equal(r.donnees[0].bookmakers[0].markets.length,2);assert.deepEqual(r.donnees[0].bookmakers[0].markets[0],x.bookmakers[0].markets[0]);
+ book.markets[1].last_update=null;r=filtrerCotes([x],window(),now);assert.equal(r.donnees[0].bookmakers[0].markets.length,1);
+});
+test('an explicitly unknown h2h timestamp cannot inherit freshness from another market',()=>{const x=row();x.bookmakers[0].markets[0].last_update=null;assert.equal(filtrerCotes([x],window(),now).donnees.length,0);});

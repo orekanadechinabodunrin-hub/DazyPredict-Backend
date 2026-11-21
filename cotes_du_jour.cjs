@@ -1,4 +1,5 @@
 'use strict';
+const {totauxValides}=require('./cotes_buts.cjs');
 const MINUTE=60000;
 function jourLocal(ms,zone){
  const p=new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(ms));
@@ -23,9 +24,9 @@ function filtrerCotes(rows,w,now){
   const books=(Array.isArray(r.bookmakers)?r.bookmakers:[]).filter(b=>b.key==='1xbet');
   const markets=books.length===1?(books[0].markets||[]).filter(m=>m.key==='h2h'&&(!m.period||m.period==='full')):[];
   if(markets.length!==1){diag.sansCote++;continue;}
-  const m=markets[0],stamp=Date.parse(m.last_update||books[0].last_update),names=[r.home_team,'Draw',r.away_team],os=m.outcomes;
+  const m=markets[0],rawStamp=Object.hasOwn(m,'last_update')?m.last_update:books[0].last_update,stamp=typeof rawStamp==='string'?Date.parse(rawStamp):NaN,names=[r.home_team,'Draw',r.away_team],os=m.outcomes;
   if(!Number.isFinite(stamp)||stamp>now+MINUTE||now-stamp>15*MINUTE||!Array.isArray(os)||os.length!==3||names.some(n=>os.filter(o=>o.name===n&&typeof o.price==='number'&&Number.isFinite(o.price)&&o.price>1&&o.price<=1000).length!==1)){diag.sansCote++;continue;}
-  valides.push({...r,bookmakers:[{...books[0],markets:[m]}]});
+  valides.push({...r,bookmakers:[{...books[0],markets:[m,...totauxValides(books[0],now)]}]});
  }
  const bad=new Set();
  for(const key of [r=>r.id,r=>[r.league.key,r.commence_time,r.home_team,r.away_team].join('|')]){
@@ -45,7 +46,7 @@ function creerControleur({get,key,now=Date.now}){
   if(!item||item.expire<=stamp){
    if(!pending.has(k))pending.set(k,(async()=>{
     try {
-     const r=await get('https://oddslink.app/v1/sports/soccer/odds',{params:{markets:'h2h',periods:'full',bookmakers:'1xbet',oddsFormat:'decimal',dateFormat:'iso',commenceTimeFrom:w.debut,commenceTimeTo:w.fin},headers:{'X-API-Key':secret,Accept:'application/json'},timeout:30000,maxContentLength:12*1024*1024});
+     const r=await get('https://oddslink.app/v1/sports/soccer/odds',{params:{markets:'h2h,totals',periods:'full',bookmakers:'1xbet',oddsFormat:'decimal',dateFormat:'iso',commenceTimeFrom:w.debut,commenceTimeTo:w.fin},headers:{'X-API-Key':secret,Accept:'application/json'},timeout:30000,maxContentLength:12*1024*1024});
      if(!Array.isArray(r.data))throw Error('Format fournisseur invalide');
      return {status:200,rows:r.data,verifieLe:new Date(now()).toISOString(),expire:now()+ttl};
     }catch(e){return {status:e.response?.status===429?429:502,message:e.response?.status===429?'Quota de la source atteint ; réessayer plus tard.':'Source des cotes temporairement indisponible.',expire:now()+ttl};}

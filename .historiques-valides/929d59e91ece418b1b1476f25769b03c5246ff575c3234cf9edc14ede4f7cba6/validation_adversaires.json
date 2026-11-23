@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "configuration": {
+    "prior": 20,
+    "demiVie": 365
+  },
+  "empreinteFichier": "929d59e91ece418b1b1476f25769b03c5246ff575c3234cf9edc14ede4f7cba6",
+  "empreintesCodeFormat": "utf8-lf-v1",
+  "empreintesCode": {
+    "moteur_dazypredict.js": "c3f95d9cfcd713563f127bcf8310d5c48221f76fd4c92c0e9d001c3c364d629d",
+    "moteur_adversaires.cjs": "e9e7a43432aab54e67ca7c96f090c2c1658204ea54f42c32c7188a0bfc52c960"
+  },
+  "gainGlobal": true,
+  "competitionsEligibles": [
+    "eng.1",
+    "esp.1",
+    "ita.1",
+    "por.1",
+    "ned.1",
+    "fra.1",
+    "ger.1"
+  ],
+  "dateEvaluation": "2026-11-23",
+  "activationAutomatique": false
+}

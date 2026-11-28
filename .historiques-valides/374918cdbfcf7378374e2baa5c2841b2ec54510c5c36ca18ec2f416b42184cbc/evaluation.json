@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "avant": "2026-11-28",
+  "empreinteDonnees": "81eb9913709219a7074a1ff806b74d7d19d4885a0dc396adfedc1d5d33414a2b",
+  "protocole": "Résultats à 90 min 2024 pour amorçage ; choix de 6 configurations sur 2025 (intersection commune), configuration figée puis test final 2026. Résultats du jour et futurs exclus. Pas de réglage sur le test final. Données rétrospectives récupérées aujourd’hui, pas archives horodatées avant match.",
+  "selection": {
+    "prior": 20,
+    "demiVie": 365
+  },
+  "validation": {
+    "comparaisons": [
+      {
+        "configuration": {
+          "prior": 20,
+          "demiVie": 365
+        },
+        "n": 3019,
+        "brier": 0.5924413787391389,
+        "logLoss": 0.9928811963494685,
+        "accuracy": 0.515071215634316
+      },
+      {
+        "configuration": {
+          "prior": 10,
+          "demiVie": 365
+        },
+        "n": 3019,
+        "brier": 0.5926261584187463,
+        "logLoss": 0.9935116483833586,
+        "accuracy": 0.514408744617423
+      },
+      {
+        "configuration": {
+          "prior": 5,
+          "demiVie": 365
+        },
+        "n": 3019,
+        "brier": 0.5927572121791502,
+        "logLoss": 0.9938448694614835,
+        "accuracy": 0.5140775091089764
+      },
+      {
+        "configuration": {
+          "prior": 20,
+          "demiVie": 180
+        },
+        "n": 3019,
+        "brier": 0.5939144720365547,
+        "logLoss": 0.9950506286397565,
+        "accuracy": 0.5167273931765485
+      },
+      {
+        "configuration": {
+          "prior": 10,
+          "demiVie": 180
+        },
+        "n": 3019,
+        "brier": 0.5940350105432614,
+        "logLoss": 0.9956146044067539,
+        "accuracy": 0.5167273931765485
+      },
+      {
+        "configuration": {
+          "prior": 5,
+          "demiVie": 180
+        },
+        "n": 3019,
+        "brier": 0.5941657853748221,
+        "logLoss": 0.9960093425840885,
+        "accuracy": 0.5177210997018881
+      }
+    ],
+    "baseline": {
+      "n": 3019,
+      "brier": 0.602273685054645,
+      "logLoss": 1.007174147661598,
+      "accuracy": 0.5064590924147069
+    },
+    "baselineTous": {
+      "n": 3177,
+      "brier": 0.6032320289053067,
+      "logLoss": 1.008528446887743,
+      "accuracy": 0.5055083412023922
+    }
+  },
+  "testFinal": {
+    "periode": {
+      "de": "2026-01-01",
+      "a": "2026-11-28"
+    },
+    "baseline": {
+      "n": 2558,
+      "brier": 0.6066387743897926,
+      "logLoss": 1.0134358731466777,
+      "accuracy": 0.4988272087568413
+    },
+    "candidat": {
+      "n": 2558,
+      "brier": 0.5958739118293532,
+      "logLoss": 0.9976843839928162,
+      "accuracy": 0.5129007036747459
+    },
+    "baselineTous": {
+      "n": 2735,
+      "brier": 0.6061867835030763,
+      "logLoss": 1.0128655931166226,
+      "accuracy": 0.49945155393053015
+    },
+    "intervallesDifferenceCandidatMoinsBaseline": {
+      "brier": {
+        "de": -0.016131517172231876,
+        "a": -0.0058564629640042365,
+        "blocs": 201,
+        "iterations": 2000
+      },
+      "logLoss": {
+        "de": -0.023333083899618783,
+        "a": -0.008566875571595354,
+        "blocs": 201,
+        "iterations": 2000
+      }
+    },
+    "parCompetition": [
+      {
+        "code": "eng.1",
+        "baseline": {
+          "n": 295,
+          "brier": 0.649837552888367,
+          "logLoss": 1.0732252636862982,
+          "accuracy": 0.45084745762711864
+        },
+        "candidat": {
+          "n": 295,
+          "brier": 0.6436185779049819,
+          "logLoss": 1.065252156033225,
+          "accuracy": 0.4440677966101695
+        },
+        "baselineDisponible": 302
+      },
+      {
+        "code": "eng.2",
+        "baseline": {
+          "n": 456,
+          "brier": 0.6390819501550368,
+          "logLoss": 1.057769577121111,
+          "accuracy": 0.4473684210526316
+        },
+        "candidat": {
+          "n": 456,
+          "brier": 0.6390135544532393,
+          "logLoss": 1.0593157183362931,
+          "accuracy": 0.43859649122807015
+        },
+        "baselineDisponible": 467
+      },
+      {
+        "code": "esp.1",
+        "baseline": {
+          "n": 325,
+          "brier": 0.5897399735999639,
+          "logLoss": 0.9902150433815519,
+          "accuracy": 0.5046153846153846
+        },
+        "candidat": {
+          "n": 325,
+          "brier": 0.5844777138410077,
+          "logLoss": 0.9834555038426033,
+          "accuracy": 0.5261538461538462
+        },
+        "baselineDisponible": 334
+      },
+      {
+        "code": "ita.1",
+        "baseline": {
+          "n": 328,
+          "brier": 0.5715911990596275,
+          "logLoss": 0.9651504949445162,
+          "accuracy": 0.5579268292682927
+        },
+        "candidat": {
+          "n": 328,
+          "brier": 0.5568426263312973,
+          "logLoss": 0.9438260644144143,
+          "accuracy": 0.5701219512195121
+        },
+        "baselineDisponible": 335
+      },
+      {
+        "code": "por.1",
+        "baseline": {
+          "n": 254,
+          "brier": 0.5634484903632977,
+          "logLoss": 0.9496814163521313,
+          "accuracy": 0.5275590551181102
+        },
+        "candidat": {
+          "n": 254,
+          "brier": 0.5483449842496357,
+          "logLoss": 0.9259142523410475,
+          "accuracy": 0.562992125984252
+        },
+        "baselineDisponible": 259
+      },
+      {
+        "code": "ned.1",
+        "baseline": {
+          "n": 263,
+          "brier": 0.6183446719931188,
+          "logLoss": 1.0331158515136976,
+          "accuracy": 0.49429657794676807
+        },
+        "candidat": {
+          "n": 263,
+          "brier": 0.6156469555693562,
+          "logLoss": 1.0277860473236933,
+          "accuracy": 0.49429657794676807
+        },
+        "baselineDisponible": 270
+      },
+      {
+        "code": "fra.1",
+        "baseline": {
+          "n": 251,
+          "brier": 0.6191659476466865,
+          "logLoss": 1.032409766907686,
+          "accuracy": 0.5099601593625498
+        },
+        "candidat": {
+          "n": 251,
+          "brier": 0.608547709547306,
+          "logLoss": 1.0129330902582743,
+          "accuracy": 0.5099601593625498
+        },
+        "baselineDisponible": 257
+      },
+      {
+        "code": "ger.1",
+        "baseline": {
+          "n": 248,
+          "brier": 0.5870148224467017,
+          "logLoss": 0.9890907817690741,
+          "accuracy": 0.5282258064516129
+        },
+        "candidat": {
+          "n": 248,
+          "brier": 0.574235863535449,
+          "logLoss": 0.9713554414117059,
+          "accuracy": 0.5604838709677419
+        },
+        "baselineDisponible": 256
+      },
+      {
+        "code": "uefa.champions",
+        "baseline": {
+          "n": 114,
+          "brier": 0.5919818771058198,
+          "logLoss": 0.9853896777775158,
+          "accuracy": 0.5087719298245614
+        },
+        "candidat": {
+          "n": 114,
+          "brier": 0.5486716842448676,
+          "logLoss": 0.922935625086667,
+          "accuracy": 0.5701754385964912
+        },
+        "baselineDisponible": 151
+      },
+      {
+        "code": "caf.nations_qual",
+        "baseline": {
+          "n": 24,
+          "brier": 0.6372626959227039,
+          "logLoss": 1.0559581155407203,
+          "accuracy": 0.4583333333333333
+        },
+        "candidat": {
+          "n": 24,
+          "brier": 0.4787020891923788,
+          "logLoss": 0.8222644108388245,
+          "accuracy": 0.75
+        },
+        "baselineDisponible": 104
+      },
+      {
+        "code": "fifa.worldq.caf",
+        "baseline": {
+          "n": 0
+        },
+        "candidat": {
+          "n": 0
+        },
+        "baselineDisponible": 0
+      }
+    ]
+  },
+  "historique": {
+    "n": 9266,
+    "invalides": 0,
+    "conflits": 0,
+    "du": "2024-01-01",
+    "au": "2026-11-27"
+  },
+  "decision": {
+    "gainGlobal": true,
+    "competitionsEligibles": [
+      "eng.1",
+      "esp.1",
+      "ita.1",
+      "por.1",
+      "ned.1",
+      "fra.1",
+      "ger.1"
+    ],
+    "activationAutomatique": false,
+    "limites": "Validation rétrospective uniquement ; composition, blessures et xG absents ; pas de mesure de rentabilité. Les compétitions à moins de 200 prévisions appariées ne sont pas éligibles."
+  }
+}
